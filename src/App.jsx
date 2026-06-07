@@ -5,6 +5,7 @@ import DailyPack from './components/DailyPack';
 import MyCollection from './components/MyCollection';
 import SquadBuilder from './components/SquadBuilder';
 import ApiSettings from './components/ApiSettings';
+import CookieBanner from './components/CookieBanner';
 import fallbackPlayers from './data/fallbackPlayers.json';
 
 export default function App() {
@@ -178,6 +179,8 @@ export default function App() {
       }}>
         <p>© 2026 FUT Ultimate Team Clone. Built for local development and testing.</p>
       </footer>
+
+      <CookieBanner lang={lang} />
     </div>
   );
 }
