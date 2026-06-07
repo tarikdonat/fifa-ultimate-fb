@@ -7,6 +7,7 @@ import SquadBuilder from './components/SquadBuilder';
 import ApiSettings from './components/ApiSettings';
 import CookieBanner from './components/CookieBanner';
 import Leaderboard from './components/Leaderboard';
+import MatchSimulator from './components/MatchSimulator';
 import fallbackPlayers from './data/fallbackPlayers.json';
 
 export default function App() {
@@ -184,6 +185,16 @@ export default function App() {
             
             {activeTab === 'leaderboard' && (
               <Leaderboard 
+                collection={collection} 
+                lang={lang} 
+                user={user}
+                coins={coins}
+                onUpdateCoins={updateCoins}
+              />
+            )}
+            
+            {activeTab === 'match' && (
+              <MatchSimulator 
                 collection={collection} 
                 lang={lang} 
                 user={user}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Layers, Settings, LogOut, Calendar, User, Globe } from 'lucide-react';
+import { Trophy, Layers, Settings, LogOut, Calendar, User, Globe, Play } from 'lucide-react';
 import { translations } from '../data/translations';
 
 export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, setLang, coins }) {
@@ -60,6 +60,15 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
             <span>{t.squadBuilder}</span>
           </button>
 
+          <button 
+            className={activeTab === 'match' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => setActiveTab('match')}
+            style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+          >
+            <Play size={16} style={{ color: '#10b981' }} />
+            <span>{t.playMatch || 'Play Match'}</span>
+          </button>
+          
           <button 
             className={activeTab === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setActiveTab('leaderboard')}
