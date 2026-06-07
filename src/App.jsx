@@ -6,6 +6,7 @@ import MyCollection from './components/MyCollection';
 import SquadBuilder from './components/SquadBuilder';
 import ApiSettings from './components/ApiSettings';
 import CookieBanner from './components/CookieBanner';
+import Leaderboard from './components/Leaderboard';
 import fallbackPlayers from './data/fallbackPlayers.json';
 
 export default function App() {
@@ -31,6 +32,28 @@ export default function App() {
         users[userIndex].coins = newAmount;
         localStorage.setItem('fut_users', JSON.stringify(users));
       }
+    }
+  };
+
+  const handleQuickSell = (player) => {
+    const rarity = player.rarity.toLowerCase();
+    let price = 100;
+    if (rarity === 'icon') price = 800;
+    else if (rarity === 'toty') price = 400;
+    else if (player.rating >= 85) price = 200;
+
+    const newCoins = coins + price;
+    updateCoins(newCoins);
+
+    const updatedCollection = collection.filter(p => p.instanceId !== player.instanceId);
+    setCollection(updatedCollection);
+
+    const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+    const userIndex = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
+    if (userIndex !== -1) {
+      users[userIndex].collection = updatedCollection;
+      users[userIndex].coins = newCoins;
+      localStorage.setItem('fut_users', JSON.stringify(users));
     }
   };
 
@@ -146,6 +169,7 @@ export default function App() {
                 collection={collection} 
                 lang={lang} 
                 onOpenPackRedirect={() => setActiveTab('daily')}
+                onQuickSell={handleQuickSell}
               />
             )}
             
@@ -155,6 +179,14 @@ export default function App() {
                 lang={lang} 
                 coins={coins}
                 onUpdateCoins={updateCoins}
+              />
+            )}
+            
+            {activeTab === 'leaderboard' && (
+              <Leaderboard 
+                collection={collection} 
+                lang={lang} 
+                user={user}
               />
             )}
             

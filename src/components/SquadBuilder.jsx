@@ -283,6 +283,60 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
     };
   }, [squad, activeSlots]);
 
+  // Calculate slot coordinates on the pitch for drawing connection lines
+  const slotCoordinates = useMemo(() => {
+    const coords = {};
+    const rows = activeFormationConfig.rows;
+    const numRows = rows.length;
+    
+    rows.forEach((rowSlots, rowIndex) => {
+      const numCols = rowSlots.length;
+      let y = 15;
+      if (numRows === 4) {
+        if (rowIndex === 1) y = 38;
+        else if (rowIndex === 2) y = 62;
+        else if (rowIndex === 3) y = 85;
+      } else if (numRows === 5) {
+        if (rowIndex === 1) y = 32;
+        else if (rowIndex === 2) y = 50;
+        else if (rowIndex === 3) y = 68;
+        else if (rowIndex === 4) y = 85;
+      }
+      
+      rowSlots.forEach((slot, colIndex) => {
+        const x = ((colIndex + 0.5) / numCols) * 100;
+        coords[slot] = { x, y };
+      });
+    });
+    
+    return coords;
+  }, [activeFormationConfig]);
+
+  // Generate links between slots dynamically based on distance
+  const chemistryLinks = useMemo(() => {
+    const links = [];
+    const slots = Object.keys(slotCoordinates);
+    
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const s1 = slots[i];
+        const s2 = slots[j];
+        const c1 = slotCoordinates[s1];
+        const c2 = slotCoordinates[s2];
+        if (!c1 || !c2) continue;
+        
+        const dx = c1.x - c2.x;
+        const dy = c1.y - c2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 32) { // Connecting threshold distance
+          links.push({ from: s1, to: s2 });
+        }
+      }
+    }
+    return links;
+  }, [slotCoordinates]);
+
   const renderChemStars = (slot) => {
     const chem = chemistryStats.playerChem[slot] || 0;
     const stars = [];
@@ -474,6 +528,64 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
           <div className="pitch-center-circle"></div>
           <div className="pitch-penalty-area-top"></div>
           <div className="pitch-penalty-area-bottom"></div>
+
+          {/* SVG Chemistry Connections */}
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+            <defs>
+              <linearGradient id="chemGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="50%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#10b981" />
+              </linearGradient>
+              <filter id="glowFilter">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {chemistryLinks.map((link, idx) => {
+              const c1 = slotCoordinates[link.from];
+              const c2 = slotCoordinates[link.to];
+              const p1 = squad[link.from];
+              const p2 = squad[link.to];
+              
+              if (!c1 || !c2) return null;
+              
+              const hasChem = p1 && p2 && (p1.club.toLowerCase() === p2.club.toLowerCase() || p1.nation.toLowerCase() === p2.nation.toLowerCase());
+              
+              if (hasChem) {
+                return (
+                  <line 
+                    key={idx}
+                    x1={`${c1.x}%`}
+                    y1={`${c1.y}%`}
+                    x2={`${c2.x}%`}
+                    y2={`${c2.y}%`}
+                    stroke="url(#chemGlow)"
+                    strokeWidth="3.2"
+                    filter="url(#glowFilter)"
+                    opacity="0.95"
+                  />
+                );
+              } else {
+                return (
+                  <line 
+                    key={idx}
+                    x1={`${c1.x}%`}
+                    y1={`${c1.y}%`}
+                    x2={`${c2.x}%`}
+                    y2={`${c2.y}%`}
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeWidth="1.2"
+                    strokeDasharray="4,4"
+                  />
+                );
+              }
+            })}
+          </svg>
 
           <div className="pitch-slots-grid">
             {activeFormationConfig.rows.map((rowSlots, rowIndex) => (

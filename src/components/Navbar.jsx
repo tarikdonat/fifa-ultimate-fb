@@ -61,6 +61,15 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
           </button>
 
           <button 
+            className={activeTab === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => setActiveTab('leaderboard')}
+            style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+          >
+            <Trophy size={16} style={{ color: 'var(--accent-gold)' }} />
+            <span>{t.leaderboard || 'Leaderboard'}</span>
+          </button>
+
+          <button 
             className={activeTab === 'api' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setActiveTab('api')}
             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}

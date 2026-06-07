@@ -3,7 +3,7 @@ import PlayerCard from './PlayerCard';
 import { translations } from '../data/translations';
 import { Search, Filter, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 
-export default function MyCollection({ collection, lang, onOpenPackRedirect }) {
+export default function MyCollection({ collection, lang, onOpenPackRedirect, onQuickSell }) {
   const t = translations[lang];
 
   const [search, setSearch] = useState('');
@@ -96,6 +96,14 @@ export default function MyCollection({ collection, lang, onOpenPackRedirect }) {
       </div>
     );
   }
+
+  const getQuickSellPrice = (p) => {
+    const rarity = p.rarity.toLowerCase();
+    if (rarity === 'icon') return 800;
+    if (rarity === 'toty') return 400;
+    if (p.rating >= 85) return 200;
+    return 100;
+  };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1rem' }}>
@@ -199,7 +207,29 @@ export default function MyCollection({ collection, lang, onOpenPackRedirect }) {
       {processedCollection.length > 0 ? (
         <div className="card-grid">
           {processedCollection.map((player) => (
-            <PlayerCard key={player.instanceId} player={player} />
+            <div key={player.instanceId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+              <PlayerCard player={player} />
+              <button 
+                className="btn-secondary"
+                onClick={() => onQuickSell && onQuickSell(player)}
+                style={{ 
+                  padding: '0.25rem 0.5rem', 
+                  fontSize: '0.7rem', 
+                  borderColor: 'rgba(239, 68, 68, 0.4)', 
+                  color: '#f87171',
+                  background: 'rgba(239, 68, 68, 0.05)',
+                  width: '100%',
+                  justifyContent: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <span>🪙 {getQuickSellPrice(player)}</span>
+                <span>•</span>
+                <span>{lang === 'tr' ? 'Hızlı Sat' : 'Quick Sell'}</span>
+              </button>
+            </div>
           ))}
         </div>
       ) : (
