@@ -24,6 +24,58 @@ export default function App() {
     localStorage.setItem('fut_lang', lang);
   }, [lang]);
 
+  // Check for squad sharing code in URL query parameters
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sharedSquadCode = params.get('squad');
+      if (sharedSquadCode && sharedSquadCode.startsWith('FUT26-')) {
+        const b64 = sharedSquadCode.substring(6);
+        const str = decodeURIComponent(escape(atob(b64)));
+        const parsed = JSON.parse(str);
+        
+        if (parsed.n && typeof parsed.o === 'number' && typeof parsed.c !== 'undefined' && Array.isArray(parsed.p)) {
+          const friends = JSON.parse(localStorage.getItem('fut_friends_squads') || '[]');
+          
+          // Check if already exists
+          const squadId = `friend_${parsed.n.replace(/\s+/g, '_').toLowerCase()}`;
+          const exists = friends.some(s => s.name === parsed.n && s.ovr === parsed.o && s.chem === parsed.c);
+          
+          if (!exists) {
+            const newFriendSquad = {
+              id: `${squadId}_${Date.now()}`,
+              name: parsed.n,
+              ovr: parsed.o,
+              chem: parsed.c,
+              logo: parsed.n.substring(0, 2).toUpperCase(),
+              color: '#3b82f6',
+              reward: 1.0,
+              isFriend: true,
+              players: parsed.p.map(p => ({
+                name: p.n,
+                rating: p.r,
+                position: p.p,
+                nation: p.nat
+              }))
+            };
+            friends.push(newFriendSquad);
+            localStorage.setItem('fut_friends_squads', JSON.stringify(friends));
+            
+            alert(lang === 'tr' 
+              ? `Arkadaşınızın kadrosu (${parsed.n}) başarıyla içe aktarıldı ve Liderlik Tablosuna eklendi!` 
+              : `Friend's squad (${parsed.n}) imported successfully and added to the Leaderboard!`);
+          }
+        }
+        
+        // Clean up the URL query parameters
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    } catch (e) {
+      console.error('Failed to auto-import squad from URL:', e);
+    }
+  }, [lang]);
+
   const updateCoins = (newAmount) => {
     setCoins(newAmount);
     if (user) {

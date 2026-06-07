@@ -98,7 +98,20 @@ const DEMO_TEAMS = [
 ];
 
 const calculateUserSquadStats = (squad, formation, username) => {
-  if (!squad || !formation) return null;
+  if (!squad || !formation) {
+    return {
+      id: `local_user_${username.toLowerCase()}`,
+      name: username,
+      ovr: 0,
+      chem: 0,
+      logo: username.substring(0, 2).toUpperCase(),
+      color: '#8b5cf6',
+      reward: 1.2,
+      isLocalUser: true,
+      incomplete: true,
+      players: []
+    };
+  }
   
   const rows = formation === '4-3-3' ? [['LW', 'ST', 'RW'], ['CM', 'CAM', 'CDM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
                formation === '4-4-2' ? [['ST1', 'ST2'], ['LM', 'CM1', 'CM2', 'RM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
@@ -109,7 +122,18 @@ const calculateUserSquadStats = (squad, formation, username) => {
   const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
   
   if (players.length < 11) {
-    return null;
+    return {
+      id: `local_user_${username.toLowerCase()}`,
+      name: username,
+      ovr: 0,
+      chem: 0,
+      logo: username.substring(0, 2).toUpperCase(),
+      color: '#8b5cf6',
+      reward: 1.2,
+      isLocalUser: true,
+      incomplete: true,
+      players: players.map(p => ({ name: p.name, rating: p.rating, position: p.position, nation: p.nation }))
+    };
   }
 
   // Calculate rating

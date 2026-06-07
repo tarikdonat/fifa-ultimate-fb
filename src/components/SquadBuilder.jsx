@@ -255,8 +255,16 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
     if (activePlayers.length < 11) return;
     
     try {
+      const activeUserStr = localStorage.getItem('fut_active_user');
+      let username = 'FUT User';
+      if (activeUserStr) {
+        try {
+          username = JSON.parse(activeUserStr).username;
+        } catch(e) {}
+      }
+
       const compact = {
-        n: `${user?.username || 'FUT User'}'s Squad`,
+        n: `${username}'s Squad`,
         o: squadRating,
         c: chemistryStats.total,
         p: activePlayers.map(p => ({
@@ -271,12 +279,14 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
       const b64 = btoa(unescape(encodeURIComponent(str)));
       const shareCode = `FUT26-${b64}`;
       
-      navigator.clipboard.writeText(shareCode).then(() => {
+      const shareUrl = `${window.location.origin}${window.location.pathname}?squad=${shareCode}`;
+      
+      navigator.clipboard.writeText(shareUrl).then(() => {
         alert(lang === 'tr' 
-          ? 'Kadro Paylaşım Kodu panoya kopyalandı! Bu kodu arkadaşlarınıza göndererek Liderlik Tablosu sekmesinden kendi oyunlarına eklemelerini sağlayabilirsiniz.' 
-          : 'Squad Share Code copied to clipboard! Send it to your friends so they can add your team to their Leaderboard.');
+          ? 'Kadro Paylaşım Linki panoya kopyalandı! Bu linki arkadaşlarınıza göndererek kadronuzun doğrudan onların liderlik tablosuna eklenmesini sağlayabilirsiniz.' 
+          : 'Squad Share Link copied to clipboard! Send this link to your friends to add your team directly to their Leaderboard.');
       }).catch(err => {
-        prompt(lang === 'tr' ? 'Kadro Paylaşım Kodunuz:' : 'Your Squad Share Code:', shareCode);
+        prompt(lang === 'tr' ? 'Kadro Paylaşım Linkiniz:' : 'Your Squad Share Link:', shareUrl);
       });
     } catch (e) {
       console.error('Failed to export squad:', e);

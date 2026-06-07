@@ -118,97 +118,101 @@ const getAudioContext = () => {
 
 const playSynthesizedSound = (type, volumeEnabled) => {
   if (!volumeEnabled) return;
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
+  
+  // Defer execution using setTimeout to prevent blocking the UI thread (resolving INP issue)
+  setTimeout(() => {
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
 
-    if (type === 'whistle') {
-      const playChirp = (delay, duration) => {
+      if (type === 'whistle') {
+        const playChirp = (delay, duration) => {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          osc.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1400, ctx.currentTime + delay);
+          osc.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + delay + duration);
+          gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
+          gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + duration);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + duration);
+        };
+        playChirp(0, 0.1);
+        playChirp(0.15, 0.1);
+        playChirp(0.35, 0.4);
+      } else if (type === 'goal') {
+        const bufferSize = ctx.sampleRate * 2.0;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(250, ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(850, ctx.currentTime + 0.5);
+        filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 2.0);
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.4);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2.0);
+        noise.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        noise.start();
+        noise.stop(ctx.currentTime + 2.0);
+      } else if (type === 'whistle_short') {
         const osc = ctx.createOscillator();
         const gainNode = ctx.createGain();
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(1400, ctx.currentTime + delay);
-        osc.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + delay + duration);
-        gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
-        gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + duration);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + duration);
-      };
-      playChirp(0, 0.1);
-      playChirp(0.15, 0.1);
-      playChirp(0.35, 0.4);
-    } else if (type === 'goal') {
-      const bufferSize = ctx.sampleRate * 2.0;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
+        osc.frequency.setValueAtTime(1300, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.12);
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } else if (type === 'card_clash') {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(180, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.25);
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(120, ctx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.35);
+        osc2.stop(ctx.currentTime + 0.35);
+      } else if (type === 'click') {
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc.frequency.setValueAtTime(900, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.06, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.04);
       }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(250, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(850, ctx.currentTime + 0.5);
-      filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 2.0);
-      const gainNode = ctx.createGain();
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.4);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2.0);
-      noise.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      noise.start();
-      noise.stop(ctx.currentTime + 2.0);
-    } else if (type === 'whistle_short') {
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1300, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.12);
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.12);
-    } else if (type === 'card_clash') {
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc1.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(180, ctx.currentTime);
-      osc1.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.25);
-      osc2.type = 'square';
-      osc2.frequency.setValueAtTime(120, ctx.currentTime);
-      osc2.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
-      gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc1.connect(gainNode);
-      osc2.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      osc1.start();
-      osc2.start();
-      osc1.stop(ctx.currentTime + 0.35);
-      osc2.stop(ctx.currentTime + 0.35);
-    } else if (type === 'click') {
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      osc.frequency.setValueAtTime(900, ctx.currentTime);
-      gainNode.gain.setValueAtTime(0.06, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.04);
+    } catch (e) {
+      console.error('Failed to play sound: ', e);
     }
-  } catch (e) {
-    console.error('Failed to play sound: ', e);
-  }
+  }, 10);
 };
 
 const FlagIcon = ({ nation }) => {
