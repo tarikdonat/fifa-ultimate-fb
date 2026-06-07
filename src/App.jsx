@@ -187,6 +187,8 @@ export default function App() {
                 collection={collection} 
                 lang={lang} 
                 user={user}
+                coins={coins}
+                onUpdateCoins={updateCoins}
               />
             )}
             
