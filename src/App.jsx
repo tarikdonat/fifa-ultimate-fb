@@ -14,11 +14,24 @@ export default function App() {
   const [lang, setLang] = useState(() => {
     return localStorage.getItem('fut_lang') || 'tr';
   });
+  const [coins, setCoins] = useState(0);
 
   // Keep track of language choice in localStorage
   useEffect(() => {
     localStorage.setItem('fut_lang', lang);
   }, [lang]);
+
+  const updateCoins = (newAmount) => {
+    setCoins(newAmount);
+    if (user) {
+      const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+      const userIndex = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
+      if (userIndex !== -1) {
+        users[userIndex].coins = newAmount;
+        localStorage.setItem('fut_users', JSON.stringify(users));
+      }
+    }
+  };
 
   // Load user session on mount & repair old collection caches automatically
   useEffect(() => {
@@ -32,6 +45,7 @@ export default function App() {
         
         if (dbUser) {
           setUser({ username: dbUser.username });
+          setCoins(dbUser.coins !== undefined ? dbUser.coins : 500);
           
           // Repair collection items with updated properties from fallbackPlayers (e.g. correct photo URLs)
           let changed = false;
@@ -81,6 +95,7 @@ export default function App() {
   const handleLoginSuccess = (dbUser) => {
     setUser({ username: dbUser.username });
     setCollection(dbUser.collection || []);
+    setCoins(dbUser.coins !== undefined ? dbUser.coins : 500);
     setActiveTab('daily');
   };
 
@@ -88,6 +103,7 @@ export default function App() {
     localStorage.removeItem('fut_active_user');
     setUser(null);
     setCollection([]);
+    setCoins(0);
     setActiveTab('daily');
   };
 
@@ -105,6 +121,7 @@ export default function App() {
         onLogout={handleLogout}
         lang={lang}
         setLang={setLang}
+        coins={coins}
       />
 
       {/* Main Content Area */}
@@ -118,6 +135,8 @@ export default function App() {
                 user={user} 
                 onCardsDrawn={handleCardsDrawn} 
                 lang={lang} 
+                coins={coins}
+                onUpdateCoins={updateCoins}
               />
             )}
             
@@ -133,6 +152,8 @@ export default function App() {
               <SquadBuilder 
                 collection={collection} 
                 lang={lang} 
+                coins={coins}
+                onUpdateCoins={updateCoins}
               />
             )}
             

@@ -2,7 +2,7 @@ import React from 'react';
 import { Trophy, Layers, Settings, LogOut, Calendar, User, Globe } from 'lucide-react';
 import { translations } from '../data/translations';
 
-export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, setLang }) {
+export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, setLang, coins }) {
   const t = translations[lang];
 
   return (
@@ -99,6 +99,11 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
 
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: 'rgba(226,183,75,0.15)', padding: '0.25rem 0.5rem', borderRadius: '12px', border: '1px solid rgba(226,183,75,0.3)', marginRight: '0.25rem' }}>
+              <span style={{ fontSize: '0.85rem' }}>🪙</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--accent-gold)' }}>{coins}</span>
+            </div>
+            
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <User size={14} color="var(--text-secondary)" />
               <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>

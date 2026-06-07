@@ -1,75 +1,185 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PlayerCard from './PlayerCard';
 import { translations } from '../data/translations';
-import { Plus, X, ShieldAlert, Award, Star } from 'lucide-react';
+import { Plus, X, ShieldAlert, Award, Star, Settings, Play, RefreshCw, Trophy } from 'lucide-react';
 
-export default function SquadBuilder({ collection, lang }) {
+const FORMATIONS = {
+  '4-3-3': {
+    name: '4-3-3',
+    rows: [
+      ['LW', 'ST', 'RW'],
+      ['CM', 'CAM', 'CDM'],
+      ['LB', 'CB1', 'CB2', 'RB'],
+      ['GK']
+    ]
+  },
+  '4-4-2': {
+    name: '4-4-2',
+    rows: [
+      ['ST1', 'ST2'],
+      ['LM', 'CM1', 'CM2', 'RM'],
+      ['LB', 'CB1', 'CB2', 'RB'],
+      ['GK']
+    ]
+  },
+  '3-5-2': {
+    name: '3-5-2',
+    rows: [
+      ['ST1', 'ST2'],
+      ['LM', 'CM1', 'CAM', 'CM2', 'RM'],
+      ['CB1', 'CB2', 'CB3'],
+      ['GK']
+    ]
+  },
+  '4-2-3-1': {
+    name: '4-2-3-1',
+    rows: [
+      ['ST'],
+      ['LAM', 'CAM', 'RAM'],
+      ['LDM', 'RDM'],
+      ['LB', 'CB1', 'CB2', 'RB'],
+      ['GK']
+    ]
+  }
+};
+
+const OPPONENTS = [
+  { name: 'Fenerbahçe SK', ovr: 81, logo: 'FB', reward: 1.0, color: '#fbbf24' },
+  { name: 'Galatasaray SK', ovr: 82, logo: 'GS', reward: 1.1, color: '#ea580c' },
+  { name: 'Beşiktaş JK', ovr: 80, logo: 'BJK', reward: 1.0, color: '#111827' },
+  { name: 'Real Madrid CF', ovr: 88, logo: 'RM', reward: 1.5, color: '#3b82f6' },
+  { name: 'FUT Icons FC', ovr: 93, logo: 'IC', reward: 2.0, color: '#d97706' }
+];
+
+const TR_COMMENTARY = [
+  "{player} orta sahada topu kaparak hızlı bir hücum başlattı!",
+  "{player} ceza sahası dışından sert vurdu... Top direğin hemen yanından auta gidiyor!",
+  "{player} harika bir vücut çalımıyla rakibini geçti, içeriye sokuluyor!",
+  "{player} kaleciyle karşı karşıya kaldı... Şut! Kaleci son anda topu kornere çeldi!",
+  "{player} sağ kanattan ortaladı... Kafa vuruşu! Top üst direkten dönüyor!",
+  "Savunmada {player} kritik bir kayarak müdahaleyle tehlikeyi önledi!",
+  "Rakip takım tehlikeli geldi, ancak {player} geçit vermedi!",
+  "Kaleci {player} mükemmel bir refleksle gole izin vermedi!",
+  "Orta sahada {player} şık paslarla oyunun yönünü değiştiriyor."
+];
+
+const TR_GOALS = [
+  "GOOOOL! {player} ceza sahası dışından muhteşem bir şutla kaleciyi çaresiz bıraktı!",
+  "GOOOOL! {player} ceza sahası içinde topa harika yükseldi ve kafayla köşeye bıraktı!",
+  "GOOOOL! {player} kaleciyle karşı karşıya kaldığı pozisyonda plase vuruşla topu ağlara yolladı!",
+  "GOOOOL! {player} mükemmel bir frikik golüyle tribünleri ayağa kaldırdı! Top doksanda!"
+];
+
+const TR_OPP_GOALS = [
+  "GOL... Rakip takım ceza sahamızda bulduğu boşluğu iyi değerlendirdi ve top ağlarımızda.",
+  "GOL... Rakip forvet düzgün bir kafa vuruşuyla kalecimizi mağlup etti.",
+  "GOL... Hızlı gelişen rakip atakta golü kalemizde gördük.",
+  "GOL... Rakip ceza yayı üzerinden vurdu ve golü buldu."
+];
+
+const EN_COMMENTARY = [
+  "{player} wins the ball in midfield and starts a quick counter-attack!",
+  "{player} shoots from distance... Just wide of the post!",
+  "{player} beats his defender with a brilliant body feint!",
+  "{player} is one-on-one with the keeper... Saved! What a brilliant reflex save!",
+  "{player} crosses from the right wing... Header! Hits the crossbar!",
+  "{player} makes a crucial sliding tackle to stop the danger!",
+  "The opponent attacks dangerously, but {player} stands strong!",
+  "Goalkeeper {player} makes a spectacular save to deny a certain goal!",
+  "{player} dictates the play with neat passes in the middle of the pitch."
+];
+
+const EN_GOALS = [
+  "GOAL! {player} fires a rocket into the top corner from outside the box!",
+  "GOAL! {player} rises highest in the box and powers a header home!",
+  "GOAL! {player} goes one-on-one and calmly slots it past the keeper!",
+  "GOAL! {player} scores a magnificent free-kick! Absolute world class!"
+];
+
+const EN_OPP_GOALS = [
+  "GOAL... The opponent found space in our penalty box and converted the chance.",
+  "GOAL... The opposition striker beats our goalkeeper with a clean header.",
+  "GOAL... A fast-paced counter-attack from the opponent ends in a goal.",
+  "GOAL... The opponent shoots from the edge of the box and scores."
+];
+
+export default function SquadBuilder({ collection, lang, coins, onUpdateCoins }) {
   const t = translations[lang];
 
-  // Squad positions configuration in a 4-3-3 formation
-  // Formations are structured by row on the pitch:
-  // Row 1 (Attack): LW, ST, RW
-  // Row 2 (Midfield): CM, CAM, CDM
-  // Row 3 (Defense): LB, CB1, CB2, RB
-  // Row 4 (Goalkeeper): GK
-  const initialSquad = {
-    ST: null,
-    LW: null,
-    RW: null,
-    CAM: null,
-    CM: null,
-    CDM: null,
-    LB: null,
-    CB1: null,
-    CB2: null,
-    RB: null,
-    GK: null
-  };
+  // Load formation from localStorage
+  const [formation, setFormation] = useState(() => {
+    return localStorage.getItem('fut_active_formation') || '4-3-3';
+  });
 
-  // Load squad from localStorage if it exists, otherwise use empty
+  const activeFormationConfig = FORMATIONS[formation];
+  const activeSlots = useMemo(() => activeFormationConfig.rows.flat(), [formation]);
+
+  // Load squad
   const [squad, setSquad] = useState(() => {
     const saved = localStorage.getItem('fut_active_squad');
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        return initialSquad;
+        return {};
       }
     }
-    return initialSquad;
+    return {};
   });
 
-  const [activeSlot, setActiveSlot] = useState(null); // ST, LW, etc.
+  const [activeSlot, setActiveSlot] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Save squad changes to localStorage helper
+  // Match Simulation States
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simStep, setSimStep] = useState('setup'); // setup, playing, result
+  const [selectedOpponent, setSelectedOpponent] = useState(OPPONENTS[0]);
+  const [simTimer, setSimTimer] = useState(0);
+  const [myScore, setMyScore] = useState(0);
+  const [oppScore, setOppScore] = useState(0);
+  const [simLog, setSimLog] = useState([]);
+  const [rewardCoins, setRewardCoins] = useState(0);
+
+  // Position resolver
+  const getTargetPosition = (slot) => {
+    const s = slot.toUpperCase();
+    if (s.startsWith('CB')) return 'CB';
+    if (s.startsWith('ST')) return 'ST';
+    if (s.startsWith('CM')) return 'CM';
+    if (s.startsWith('CDM') || s === 'LDM' || s === 'RDM') return 'CDM';
+    if (s.startsWith('CAM') || s === 'LAM' || s === 'RAM') return 'CAM';
+    if (s === 'LM') return 'LM';
+    if (s === 'RM') return 'RM';
+    return s;
+  };
+
+  // Save changes helper
   const saveSquad = (newSquad) => {
     setSquad(newSquad);
     localStorage.setItem('fut_active_squad', JSON.stringify(newSquad));
   };
 
-  // Compile list of players currently in the squad to avoid assigning the same card instance twice
-  const assignedInstanceIds = useMemo(() => {
-    return Object.values(squad)
-      .filter(p => p !== null)
-      .map(p => p.instanceId);
-  }, [squad]);
+  const handleFormationChange = (e) => {
+    const newForm = e.target.value;
+    setFormation(newForm);
+    localStorage.setItem('fut_active_formation', newForm);
+  };
 
-  // Available players to choose from (in collection, not in squad)
+  const assignedInstanceIds = useMemo(() => {
+    return activeSlots
+      .map(slot => squad[slot])
+      .filter(p => p !== null && p !== undefined)
+      .map(p => p.instanceId);
+  }, [squad, activeSlots]);
+
   const availablePlayers = useMemo(() => {
     if (!collection) return [];
     return collection.filter(p => !assignedInstanceIds.includes(p.instanceId));
   }, [collection, assignedInstanceIds]);
 
-  // Sort and filter available players based on the slot clicked
   const filteredAvailablePlayers = useMemo(() => {
     if (!activeSlot) return [];
-    
-    // Normalize slot names for position matching
-    let targetPos = activeSlot;
-    if (activeSlot.startsWith('CB')) targetPos = 'CB';
-
-    // Prioritize players matching target position, sort by rating descending
+    const targetPos = getTargetPosition(activeSlot);
     const match = [];
     const others = [];
 
@@ -82,7 +192,6 @@ export default function SquadBuilder({ collection, lang }) {
     });
 
     const sortByRating = (a, b) => b.rating - a.rating;
-    
     return [...match.sort(sortByRating), ...others.sort(sortByRating)];
   }, [availablePlayers, activeSlot]);
 
@@ -100,48 +209,35 @@ export default function SquadBuilder({ collection, lang }) {
   };
 
   const handleRemovePlayer = (slot, e) => {
-    e.stopPropagation(); // Prevent opening selector immediately
+    e.stopPropagation();
     const newSquad = { ...squad, [slot]: null };
     saveSquad(newSquad);
   };
 
   const handleClearSquad = () => {
-    saveSquad(initialSquad);
+    const cleared = {};
+    activeSlots.forEach(slot => { cleared[slot] = null; });
+    saveSquad(cleared);
   };
 
-  // --- STATS CALCULATIONS ---
-
-  // Squad Overall Rating (OVR)
+  // OVR calculations
   const squadRating = useMemo(() => {
-    const players = Object.values(squad).filter(p => p !== null);
+    const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
     if (players.length === 0) return 0;
-    
     const sum = players.reduce((acc, p) => acc + p.rating, 0);
     return Math.floor(sum / players.length);
-  }, [squad]);
+  }, [squad, activeSlots]);
 
-  // Chemistry Logic (Max 33)
-  // Each of the 11 slots can get 0 to 3 chemistry stars based on:
-  // 1. Natural Position (1 point if slot matches player position)
-  // 2. Club Chemistry (1 point if there is >= 2 players from the same club in squad)
-  // 3. Nation Chemistry (1 point if there is >= 2 players from the same nation in squad)
+  // Chemistry calculations
   const chemistryStats = useMemo(() => {
-    const playersInSquad = Object.entries(squad)
-      .filter(([_, player]) => player !== null)
-      .map(([slot, player]) => ({
-        slot,
-        player,
-        posMatch: false,
-        clubMatch: false,
-        nationMatch: false,
-        totalChem: 0
-      }));
+    const playersInSquad = activeSlots
+      .map(slot => ({ slot, player: squad[slot] }))
+      .filter(({ player }) => player !== null && player !== undefined);
 
     if (playersInSquad.length === 0) {
       return { total: 0, playerChem: {} };
     }
 
-    // 1. Compile counts of club and nations
     const clubCounts = {};
     const nationCounts = {};
 
@@ -155,23 +251,24 @@ export default function SquadBuilder({ collection, lang }) {
     let totalChem = 0;
     const playerChemMap = {};
 
-    // 2. Compute chem per player
     playersInSquad.forEach(({ slot, player }) => {
       let chem = 0;
-      
-      // Position Match
-      let targetPos = slot;
-      if (slot.startsWith('CB')) targetPos = 'CB';
-      if (player.position.toUpperCase() === targetPos.toUpperCase()) {
+      const targetPos = getTargetPosition(slot);
+      const playerPos = player.position.toUpperCase();
+
+      if (playerPos === targetPos || 
+          (targetPos === 'CAM' && playerPos === 'CM') ||
+          (targetPos === 'CDM' && playerPos === 'CM') ||
+          (targetPos === 'LM' && playerPos === 'LW') ||
+          (targetPos === 'RM' && playerPos === 'RW')
+      ) {
         chem += 1;
       }
 
-      // Club Match (>= 2 players from same club)
       if (clubCounts[player.club.toLowerCase()] >= 2) {
         chem += 1;
       }
 
-      // Nation Match (>= 2 players from same nation)
       if (nationCounts[player.nation.toLowerCase()] >= 2) {
         chem += 1;
       }
@@ -184,9 +281,8 @@ export default function SquadBuilder({ collection, lang }) {
       total: totalChem,
       playerChem: playerChemMap
     };
-  }, [squad]);
+  }, [squad, activeSlots]);
 
-  // Helper to determine chem dots/stars color
   const renderChemStars = (slot) => {
     const chem = chemistryStats.playerChem[slot] || 0;
     const stars = [];
@@ -204,6 +300,98 @@ export default function SquadBuilder({ collection, lang }) {
     return <div style={{ display: 'flex', gap: '2px', marginTop: '2px' }}>{stars}</div>;
   };
 
+  // Live Match Simulation Loop
+  useEffect(() => {
+    let interval = null;
+    if (isSimulating && simStep === 'playing') {
+      interval = setInterval(() => {
+        setSimTimer(prev => {
+          const nextMinute = prev + 15;
+          if (nextMinute >= 90) {
+            clearInterval(interval);
+            // Match Finished
+            setSimStep('result');
+            calculateMatchRewards();
+            return 90;
+          }
+
+          // Generate commentary event
+          generateCommentaryEvent(nextMinute);
+          return nextMinute;
+        });
+      }, 900);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [isSimulating, simStep]);
+
+  const generateCommentaryEvent = (minute) => {
+    const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
+    if (players.length === 0) return;
+
+    const myPower = squadRating + (chemistryStats.total / 3);
+    const oppPower = selectedOpponent.ovr;
+    
+    // Weighted probability of attack
+    const totalPower = myPower + oppPower;
+    const roll = Math.random();
+
+    let eventStr = '';
+    
+    if (roll < myPower / totalPower) {
+      // My team gets an event
+      const p = players[Math.floor(Math.random() * players.length)];
+      const isGoal = Math.random() < 0.3; // 30% chance to score during attack
+
+      if (isGoal) {
+        setMyScore(prev => prev + 1);
+        const templates = lang === 'tr' ? TR_GOALS : EN_GOALS;
+        eventStr = templates[Math.floor(Math.random() * templates.length)].replace('{player}', p.name);
+      } else {
+        const templates = lang === 'tr' ? TR_COMMENTARY : EN_COMMENTARY;
+        eventStr = templates[Math.floor(Math.random() * templates.length)].replace('{player}', p.name);
+      }
+    } else {
+      // Opponent team gets an event
+      const isGoal = Math.random() < 0.28; // 28% chance opponent scores
+      if (isGoal) {
+        setOppScore(prev => prev + 1);
+        const templates = lang === 'tr' ? TR_OPP_GOALS : EN_OPP_GOALS;
+        eventStr = templates[Math.floor(Math.random() * templates.length)];
+      } else {
+        eventStr = lang === 'tr' 
+          ? "Rakip takım yarı sahamızda pas yapıyor, savunmamız yerleşti."
+          : "The opponent team possesses the ball in midfield, but the defense blocks the passing lanes.";
+      }
+    }
+
+    setSimLog(prev => [{ minute, event: eventStr }, ...prev]);
+  };
+
+  const calculateMatchRewards = () => {
+    let base = 30;
+    if (myScore > oppScore) base = 150; // win
+    else if (myScore === oppScore) base = 70; // draw
+
+    const finalCoins = Math.floor(base * selectedOpponent.reward);
+    setRewardCoins(finalCoins);
+    onUpdateCoins(coins + finalCoins);
+  };
+
+  const handleStartSimulation = () => {
+    setSimTimer(0);
+    setMyScore(0);
+    setOppScore(0);
+    setSimLog([]);
+    setSimStep('playing');
+    
+    setSimLog([{ minute: 0, event: lang === 'tr' ? 'Maç Başladı!' : 'Match Started!' }]);
+  };
+
+  const handleCloseSimulation = () => {
+    setIsSimulating(false);
+    setSimStep('setup');
+  };
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1rem' }}>
       
@@ -213,36 +401,66 @@ export default function SquadBuilder({ collection, lang }) {
           <h2 className="glow-gold" style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-gold)', textTransform: 'uppercase' }}>
             {t.squadBuilder}
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Kadro dizilişi: 4-3-3 (ST, LW, RW, CAM, CM, CDM, LB, CB, CB, RB, GK)
-          </p>
+          
+          {/* Formation selector dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t.formation || 'Formation'}:</span>
+            <select 
+              className="form-input" 
+              value={formation} 
+              onChange={handleFormationChange}
+              style={{ padding: '0.25rem 0.5rem', width: 'auto', fontSize: '0.85rem', cursor: 'pointer', height: 'fit-content' }}
+            >
+              {Object.keys(FORMATIONS).map(key => (
+                <option key={key} value={key}>{key}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {/* OVR Box */}
-          <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', textAlign: 'center', minWidth: '120px', border: '1px solid var(--border-color)' }}>
+          <div className="glass-panel" style={{ padding: '0.75rem 1.25rem', textAlign: 'center', minWidth: '100px', border: '1px solid var(--border-color)' }}>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: '800', display: 'block', letterSpacing: '1px' }}>
               {t.squadRating}
             </span>
-            <span className="glow-gold" style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--accent-gold)' }}>
+            <span className="glow-gold" style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-gold)' }}>
               {squadRating}
             </span>
           </div>
 
           {/* Chemistry Box */}
-          <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', textAlign: 'center', minWidth: '120px', border: '1px solid var(--border-color)' }}>
+          <div className="glass-panel" style={{ padding: '0.75rem 1.25rem', textAlign: 'center', minWidth: '100px', border: '1px solid var(--border-color)' }}>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: '800', display: 'block', letterSpacing: '1px' }}>
               {t.squadChemistry}
             </span>
-            <span className="glow-gold" style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--accent-gold)' }}>
-              {chemistryStats.total} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/ 33</span>
+            <span className="glow-gold" style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-gold)' }}>
+              {chemistryStats.total} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>/ 33</span>
             </span>
           </div>
+
+          {/* Simulation Match Button */}
+          {activeSlots.filter(slot => squad[slot] !== null && squad[slot] !== undefined).length === 11 && (
+            <button 
+              className="btn-primary" 
+              onClick={() => setIsSimulating(true)}
+              style={{ 
+                height: 'fit-content', 
+                alignSelf: 'center', 
+                background: 'linear-gradient(135deg, #10b981, #047857)', 
+                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+                color: '#fff'
+              }}
+            >
+              <Play size={16} />
+              <span>{t.playMatch || 'Play Match'}</span>
+            </button>
+          )}
 
           {/* Clear Button */}
           <button className="btn-secondary" onClick={handleClearSquad} style={{ height: 'fit-content', alignSelf: 'center' }}>
             <X size={16} />
-            <span>Kadroyu Temizle / Reset</span>
+            <span>{lang === 'tr' ? 'Temizle' : 'Reset'}</span>
           </button>
         </div>
       </div>
@@ -258,238 +476,35 @@ export default function SquadBuilder({ collection, lang }) {
           <div className="pitch-penalty-area-bottom"></div>
 
           <div className="pitch-slots-grid">
-            {/* ROW 1: ATTACKERS */}
-            <div className="pitch-row">
-              {/* LW */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('LW')}>
-                {squad.LW ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.LW} showStats={false} />
+            {activeFormationConfig.rows.map((rowSlots, rowIndex) => (
+              <div key={rowIndex} className="pitch-row">
+                {rowSlots.map((slot) => {
+                  const player = squad[slot];
+                  const targetPos = getTargetPosition(slot);
+                  
+                  return (
+                    <div key={slot} className="pitch-slot" onClick={() => handleOpenSlotSelector(slot)}>
+                      {player ? (
+                        <>
+                          <div className="pitch-slot-card">
+                            <PlayerCard player={player} showStats={false} />
+                          </div>
+                          {renderChemStars(slot)}
+                          <button className="btn-secondary" onClick={(e) => handleRemovePlayer(slot, e)} style={{ padding: '0.15rem', position: 'absolute', right: '-8px', top: '-8px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', zIndex: 10 }}>
+                            <X size={10} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="pitch-slot-circle"><Plus size={16} /></div>
+                          <span className="pitch-slot-label">{t['pitch' + targetPos] ? targetPos : targetPos}</span>
+                        </>
+                      )}
                     </div>
-                    {renderChemStars('LW')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('LW', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchLW}</span>
-                  </>
-                )}
+                  );
+                })}
               </div>
-
-              {/* ST */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('ST')}>
-                {squad.ST ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.ST} showStats={false} />
-                    </div>
-                    {renderChemStars('ST')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('ST', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchST}</span>
-                  </>
-                )}
-              </div>
-
-              {/* RW */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('RW')}>
-                {squad.RW ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.RW} showStats={false} />
-                    </div>
-                    {renderChemStars('RW')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('RW', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchRW}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ROW 2: MIDFIELDERS */}
-            <div className="pitch-row">
-              {/* CM */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('CM')}>
-                {squad.CM ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.CM} showStats={false} />
-                    </div>
-                    {renderChemStars('CM')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('CM', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchCM}</span>
-                  </>
-                )}
-              </div>
-
-              {/* CAM */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('CAM')}>
-                {squad.CAM ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.CAM} showStats={false} />
-                    </div>
-                    {renderChemStars('CAM')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('CAM', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchCAM}</span>
-                  </>
-                )}
-              </div>
-
-              {/* CDM */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('CDM')}>
-                {squad.CDM ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.CDM} showStats={false} />
-                    </div>
-                    {renderChemStars('CDM')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('CDM', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchCDM}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ROW 3: DEFENDERS */}
-            <div className="pitch-row">
-              {/* LB */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('LB')}>
-                {squad.LB ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.LB} showStats={false} />
-                    </div>
-                    {renderChemStars('LB')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('LB', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchLB}</span>
-                  </>
-                )}
-              </div>
-
-              {/* CB 1 */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('CB1')}>
-                {squad.CB1 ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.CB1} showStats={false} />
-                    </div>
-                    {renderChemStars('CB1')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('CB1', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchCB} 1</span>
-                  </>
-                )}
-              </div>
-
-              {/* CB 2 */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('CB2')}>
-                {squad.CB2 ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.CB2} showStats={false} />
-                    </div>
-                    {renderChemStars('CB2')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('CB2', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchCB} 2</span>
-                  </>
-                )}
-              </div>
-
-              {/* RB */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('RB')}>
-                {squad.RB ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.RB} showStats={false} />
-                    </div>
-                    {renderChemStars('RB')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('RB', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchRB}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ROW 4: GOALKEEPER */}
-            <div className="pitch-row">
-              {/* GK */}
-              <div className="pitch-slot" onClick={() => handleOpenSlotSelector('GK')}>
-                {squad.GK ? (
-                  <>
-                    <div className="pitch-slot-card">
-                      <PlayerCard player={squad.GK} showStats={false} />
-                    </div>
-                    {renderChemStars('GK')}
-                    <button className="btn-secondary" onClick={(e) => handleRemovePlayer('GK', e)} style={{ padding: '0.15rem', position: 'absolute', right: '-10px', top: '-10px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff' }}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="pitch-slot-circle"><Plus size={20} /></div>
-                    <span className="pitch-slot-label">{t.pitchGK}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
+            ))}
           </div>
         </div>
 
@@ -501,7 +516,7 @@ export default function SquadBuilder({ collection, lang }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--accent-gold)' }}>
-                {t.selectPlayerTitle} ({activeSlot})
+                {t.selectPlayerTitle} ({getTargetPosition(activeSlot)})
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -511,11 +526,11 @@ export default function SquadBuilder({ collection, lang }) {
               </button>
             </div>
             
-            <div className="modal-body">
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {filteredAvailablePlayers.length > 0 ? (
                 <div>
                   {filteredAvailablePlayers.map((player) => {
-                    const isPreferred = player.position.toUpperCase() === (activeSlot.startsWith('CB') ? 'CB' : activeSlot).toUpperCase();
+                    const isPreferred = player.position.toUpperCase() === getTargetPosition(activeSlot).toUpperCase();
                     return (
                       <div 
                         key={player.instanceId} 
@@ -529,7 +544,7 @@ export default function SquadBuilder({ collection, lang }) {
                         <div style={{ flexGrow: 1 }}>
                           <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{player.name}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
-                            <span>{player.position}</span>
+                            <span style={{ color: isPreferred ? 'var(--accent-gold)' : 'var(--text-secondary)', fontWeight: 'bold' }}>{player.position}</span>
                             <span>•</span>
                             <span>{player.club}</span>
                             <span>•</span>
@@ -561,10 +576,200 @@ export default function SquadBuilder({ collection, lang }) {
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
-                  <ShieldAlert size={36} style={{ marginBottom: '0.75rem' }} />
+                  <ShieldAlert size={36} style={{ marginBottom: '0.75rem', margin: '0 auto', color: 'var(--accent-gold)' }} />
                   <p style={{ fontSize: '0.9rem' }}>{t.noAvailablePlayers}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MATCH SIMULATOR MODAL */}
+      {isSimulating && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }}>
+          <div className="modal-content" style={{ maxWidth: '600px', background: 'radial-gradient(circle at top, #111827 0%, #030712 100%)', border: '1px solid var(--accent-gold)' }}>
+            
+            {/* Modal Header */}
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Trophy size={20} color="var(--accent-gold)" />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--accent-gold)', textTransform: 'uppercase', margin: 0 }}>
+                  {t.playMatch || 'Match Simulation'}
+                </h3>
+              </div>
+              {simStep !== 'playing' && (
+                <button onClick={handleCloseSimulation} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              
+              {/* STEP 1: Setup Opponent Selection */}
+              {simStep === 'setup' && (
+                <div>
+                  <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontWeight: '700', fontSize: '1rem' }}>
+                    {t.selectOpponent || 'Select Opponent'}:
+                  </h4>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {OPPONENTS.map(opp => (
+                      <div 
+                        key={opp.name}
+                        onClick={() => setSelectedOpponent(opp)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '1rem',
+                          borderRadius: '8px',
+                          border: `1px solid ${selectedOpponent.name === opp.name ? 'var(--accent-gold)' : 'var(--border-color)'}`,
+                          backgroundColor: selectedOpponent.name === opp.name ? 'rgba(226,183,75,0.1)' : 'var(--bg-tertiary)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ 
+                            width: '36px', 
+                            height: '36px', 
+                            borderRadius: '50%', 
+                            backgroundColor: opp.color, 
+                            color: '#fff', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: '900',
+                            fontSize: '0.85rem'
+                          }}>
+                            {opp.logo}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '700' }}>{opp.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Reward Multiplier: <span style={{ color: 'var(--accent-gold)', fontWeight: 'bold' }}>{opp.reward}x</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>OVR</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: '900', color: opp.color }}>{opp.ovr}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    className="btn-primary" 
+                    onClick={handleStartSimulation} 
+                    style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', boxShadow: 'none' }}
+                  >
+                    <Play size={16} />
+                    <span>{t.startMatch || 'Start Match'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: Live Commentary / Match in Progress */}
+              {simStep === 'playing' && (
+                <div>
+                  {/* Scoreboard */}
+                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                    <div style={{ textAlign: 'center', width: '40%' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>MY SQUAD</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: '900' }}>{user.username}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-gold)', fontWeight: '900', letterSpacing: '1px' }}>
+                        {simTimer}'
+                      </span>
+                      <span style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '2px', color: 'var(--accent-gold)', margin: '0.25rem 0' }}>
+                        {myScore} - {oppScore}
+                      </span>
+                    </div>
+
+                    <div style={{ textAlign: 'center', width: '40%' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>OPPONENT</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: '900', color: selectedOpponent.color }}>{selectedOpponent.name}</span>
+                    </div>
+                  </div>
+
+                  {/* Commentary Log list */}
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontWeight: '800', fontSize: '0.75rem', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {t.matchPlaying || 'Match in progress...'}:
+                    </span>
+                    <div style={{ height: '200px', overflowY: 'auto', backgroundColor: '#030712', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      {simLog.map((log, index) => {
+                        const isGoal = log.event.includes('GOL') || log.event.toUpperCase().includes('GOAL');
+                        return (
+                          <div 
+                            key={index} 
+                            style={{ 
+                              borderLeft: `2.5px solid ${isGoal ? 'var(--accent-gold)' : index === 0 ? '#10b981' : 'transparent'}`,
+                              paddingLeft: '0.5rem',
+                              color: isGoal ? 'var(--accent-gold)' : index === 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              fontWeight: isGoal || index === 0 ? 'bold' : 'normal'
+                            }}
+                          >
+                            <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: '0.4rem' }}>[{log.minute}']</span>
+                            <span>{log.event}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Result Page & Reward Claim */}
+              {simStep === 'result' && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '4rem', marginBottom: '0.5rem' }}>🏆</div>
+                  <h3 style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-gold)', marginBottom: '0.25rem' }}>
+                    {myScore > oppScore 
+                      ? (t.matchWin || 'Victory!') 
+                      : myScore === oppScore 
+                        ? (t.matchDraw || 'Draw!') 
+                        : (t.matchLose || 'Defeat!')}
+                  </h3>
+                  
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '4px', margin: '1rem 0' }}>
+                    {myScore} - {oppScore}
+                  </div>
+
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                    {selectedOpponent.name} {lang === 'tr' ? 'karşısında maç tamamlandı.' : 'match has finished.'}
+                  </p>
+
+                  {/* Reward Card */}
+                  <div className="glass-panel" style={{ maxWidth: '300px', margin: '0 auto 1.5rem auto', border: '1px solid var(--accent-gold)', padding: '1rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      {lang === 'tr' ? 'MAÇ ÖDÜLÜ' : 'MATCH REWARDS'}
+                    </span>
+                    <span style={{ fontSize: '2.25rem', fontWeight: '900', color: 'var(--accent-gold)', display: 'block', margin: '0.25rem 0' }}>
+                      🪙 {rewardCoins}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {t.rewardCoinsEarned || 'coins earned!'}
+                    </span>
+                  </div>
+
+                  <button 
+                    className="btn-primary" 
+                    onClick={handleCloseSimulation} 
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    <span>{t.collectRewards || 'Collect Rewards'}</span>
+                  </button>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
