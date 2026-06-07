@@ -6,7 +6,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
   const t = translations[lang];
 
   return (
-    <nav style={{
+    <nav className="app-navbar" style={{
       backgroundColor: 'var(--bg-secondary)',
       borderBottom: '1px solid var(--border-color)',
       padding: '1rem 2rem',
@@ -32,7 +32,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
 
       {/* Navigation Links */}
       {user && (
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="nav-links" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
             className={activeTab === 'daily' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setActiveTab('daily')}
@@ -72,7 +72,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout, lang, 
       )}
 
       {/* User Actions & Language Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Language Switcher */}
         <button 
           onClick={() => setLang(lang === 'tr' ? 'en' : 'tr')}

@@ -743,3 +743,175 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Media Queries for Mobile Responsiveness */
+@media (max-width: 768px) {
+  .app-navbar {
+    padding: 0.75rem 1rem !important;
+    justify-content: center !important;
+    gap: 0.75rem !important;
+  }
+  
+  .nav-links {
+    width: 100%;
+    justify-content: center !important;
+  }
+
+  .nav-actions {
+    width: 100%;
+    justify-content: center !important;
+    border-left: none !important;
+    padding-left: 0 !important;
+  }
+
+  /* Grid details */
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 0.75rem !important;
+    padding: 1rem 0 !important;
+  }
+
+  .fut-card {
+    width: 130px !important;
+    height: 195px !important;
+  }
+
+  .card-top {
+    height: 50% !important;
+  }
+
+  .card-rating {
+    font-size: 1.35rem !important;
+  }
+
+  .card-position {
+    font-size: 0.65rem !important;
+  }
+
+  .player-avatar-svg {
+    max-height: 80px !important;
+  }
+
+  .card-name {
+    font-size: 0.75rem !important;
+    padding-bottom: 0.15rem !important;
+  }
+
+  .card-stats-grid {
+    font-size: 0.6rem !important;
+    row-gap: 0.05rem !important;
+    column-gap: 0.2rem !important;
+    padding: 0.2rem 0.1rem !important;
+  }
+
+  .stat-lbl {
+    font-size: 0.55rem !important;
+  }
+  
+  .card-footer-info {
+    font-size: 0.55rem !important;
+    margin-top: 0.1rem !important;
+  }
+
+  /* Glass panel and search forms */
+  .glass-panel {
+    padding: 1rem !important;
+  }
+
+  /* Daily pack opening sizing */
+  .reveal-cards-container {
+    gap: 0.75rem !important;
+    padding: 0.75rem !important;
+  }
+  
+  .revealed-card-item .fut-card {
+    width: 110px !important;
+    height: 165px !important;
+  }
+
+  .revealed-card-item .card-rating {
+    font-size: 1.15rem !important;
+  }
+
+  .revealed-card-item .card-position {
+    font-size: 0.55rem !important;
+  }
+
+  .revealed-card-item .card-name {
+    font-size: 0.65rem !important;
+  }
+
+  .revealed-card-item .card-stats-grid {
+    font-size: 0.5rem !important;
+  }
+
+  .revealed-card-item .stat-lbl {
+    font-size: 0.45rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-navbar {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .nav-links {
+    flex-direction: row;
+    justify-content: center !important;
+  }
+
+  .nav-links button {
+    flex-grow: 1;
+    font-size: 0.75rem !important;
+    padding: 0.4rem 0.5rem !important;
+  }
+
+  .nav-links button span {
+    display: none; /* Show only icons on narrow mobile to prevent overlapping */
+  }
+
+  .nav-actions {
+    flex-direction: row;
+    justify-content: center !important;
+  }
+
+  /* Pitch adjustments for mobile */
+  .pitch-container {
+    max-width: 100% !important;
+    aspect-ratio: 4 / 5 !important;
+    border-width: 2px !important;
+    border-radius: 8px !important;
+  }
+
+  .pitch-slots-grid {
+    padding: 0.5rem 0.25rem !important;
+  }
+
+  .pitch-slot {
+    width: 65px !important;
+  }
+
+  .pitch-slot-circle {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.75rem !important;
+    border-width: 1.5px !important;
+  }
+
+  .pitch-slot-label {
+    font-size: 0.55rem !important;
+    padding: 0.05rem 0.15rem !important;
+    border-radius: 4px !important;
+  }
+
+  .pitch-slot-card {
+    transform: scale(0.35) !important;
+    margin-top: -90px !important;
+    margin-bottom: -85px !important;
+  }
+
+  .pitch-slot:hover .pitch-slot-card {
+    transform: scale(0.38) translateY(-3px) !important;
+  }
+}

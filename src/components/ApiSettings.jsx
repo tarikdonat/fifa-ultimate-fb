@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { translations } from '../data/translations';
 import { Search, Plus, Check, ShieldAlert, Globe } from 'lucide-react';
+import fallbackPlayers from '../data/fallbackPlayers.json';
 
 export default function ApiSettings({ user, lang }) {
   const t = translations[lang];
@@ -37,6 +38,32 @@ export default function ApiSettings({ user, lang }) {
     setImportedIds(ids);
   }, [user]);
 
+  const runLocalFallbackSearch = () => {
+    const query = searchQuery.toLowerCase().trim();
+    const localMatches = fallbackPlayers.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      p.club.toLowerCase().includes(query) ||
+      p.nation.toLowerCase().includes(query)
+    );
+
+    if (localMatches.length > 0) {
+      const mapped = localMatches.map(p => ({
+        id: p.id,
+        name: p.name,
+        position: p.position,
+        team: { name: p.club },
+        country: { name: p.nation },
+        type: 'player',
+        isLocalFallback: true,
+        originalData: p
+      }));
+      setSearchResults(mapped);
+    } else {
+      setStatusType('error');
+      setStatusMessage(t.apiNoResults);
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || !apiKey) return;
@@ -55,7 +82,7 @@ export default function ApiSettings({ user, lang }) {
       });
 
       if (!response.ok) {
-        throw new Error(lang === 'tr' ? 'Arama sunucusu yanıt vermedi. Lütfen bağlantınızı kontrol edin.' : 'Search server did not respond. Please check your connection.');
+        throw new Error('API failed');
       }
 
       const data = await response.json();
@@ -79,12 +106,11 @@ export default function ApiSettings({ user, lang }) {
       if (list.length > 0) {
         setSearchResults(list.slice(0, 15));
       } else {
-        setStatusType('error');
-        setStatusMessage(t.apiNoResults);
+        runLocalFallbackSearch();
       }
     } catch (err) {
-      setStatusType('error');
-      setStatusMessage(err.message || (lang === 'tr' ? 'Arama sırasında bir hata oluştu.' : 'An error occurred during search.'));
+      console.warn('Search API offline/failed, using local fallback database:', err);
+      runLocalFallbackSearch();
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +119,31 @@ export default function ApiSettings({ user, lang }) {
   const handleImportPlayer = (apiItem) => {
     const p = apiItem.player || apiItem;
     if (!p || !p.name) return;
+
+    if (apiItem.isLocalFallback && apiItem.originalData) {
+      const orig = apiItem.originalData;
+      const customPlayers = JSON.parse(localStorage.getItem(`custom_players_${user.username.toLowerCase()}`) || '[]');
+      const exists = customPlayers.some(item => item.id === orig.id);
+      
+      if (exists) {
+        setStatusType('error');
+        setStatusMessage(`"${orig.name}" ${t.apiImportExists}`);
+        return;
+      }
+      
+      const newPlayer = {
+        ...orig,
+        avatar: null
+      };
+      
+      customPlayers.push(newPlayer);
+      localStorage.setItem(`custom_players_${user.username.toLowerCase()}`, JSON.stringify(customPlayers));
+      
+      setImportedIds(prev => [...prev, orig.id]);
+      setStatusType('success');
+      setStatusMessage(`"${orig.name}" ${t.apiImportSuccess}`);
+      return;
+    }
 
     const playerId = `sofa_${p.id || Math.floor(Math.random() * 1000000)}`;
     
@@ -267,14 +318,21 @@ export default function ApiSettings({ user, lang }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {/* Tiny avatar headshot on search list */}
-                    <img 
-                      src={`https://www.sofascore.com/api/v1/player/${p.id}/image`}
-                      alt=""
-                      referrerPolicy="no-referrer"
-                      style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--bg-primary)', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
+                    {/* Styled placeholder circle instead of remote image */}
+                    <div style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      borderRadius: '50%', 
+                      backgroundColor: 'var(--bg-primary)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      border: '1px solid var(--border-color)',
+                      fontSize: '14px',
+                      flexShrink: 0
+                    }}>
+                      ⚽
+                    </div>
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{p.name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.4rem', marginTop: '0.15rem' }}>

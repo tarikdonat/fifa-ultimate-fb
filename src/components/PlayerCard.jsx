@@ -243,18 +243,7 @@ export default function PlayerCard({ player, onClick, isFlipped = false, showSta
             </div>
             
             <div className="card-portrait">
-              {avatar && !imageError ? (
-                <img 
-                  src={avatar} 
-                  alt={name}
-                  className="player-avatar-svg"
-                  style={{ objectFit: 'contain', width: 'auto', height: '100%', maxHeight: '110px' }}
-                  referrerPolicy="no-referrer"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <PlayerSilhouette rarity={rarity.toLowerCase()} name={name} />
-              )}
+              <PlayerSilhouette rarity={rarity.toLowerCase()} name={name} />
             </div>
           </div>
 
