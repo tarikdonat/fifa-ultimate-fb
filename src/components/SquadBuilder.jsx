@@ -157,12 +157,42 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
   const saveSquad = (newSquad) => {
     setSquad(newSquad);
     localStorage.setItem('fut_active_squad', JSON.stringify(newSquad));
+    
+    // Sync to user database
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('fut_active_user') || 'null');
+      if (activeUser) {
+        const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+        const userIndex = users.findIndex(u => u.username.toLowerCase() === activeUser.username.toLowerCase());
+        if (userIndex !== -1) {
+          users[userIndex].squad = newSquad;
+          localStorage.setItem('fut_users', JSON.stringify(users));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleFormationChange = (e) => {
     const newForm = e.target.value;
     setFormation(newForm);
     localStorage.setItem('fut_active_formation', newForm);
+    
+    // Sync to user database
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('fut_active_user') || 'null');
+      if (activeUser) {
+        const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+        const userIndex = users.findIndex(u => u.username.toLowerCase() === activeUser.username.toLowerCase());
+        if (userIndex !== -1) {
+          users[userIndex].formation = newForm;
+          localStorage.setItem('fut_users', JSON.stringify(users));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const assignedInstanceIds = useMemo(() => {
@@ -218,6 +248,39 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
     const cleared = {};
     activeSlots.forEach(slot => { cleared[slot] = null; });
     saveSquad(cleared);
+  };
+
+  const handleShareSquad = () => {
+    const activePlayers = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
+    if (activePlayers.length < 11) return;
+    
+    try {
+      const compact = {
+        n: `${user?.username || 'FUT User'}'s Squad`,
+        o: squadRating,
+        c: chemistryStats.total,
+        p: activePlayers.map(p => ({
+          n: p.name,
+          r: p.rating,
+          p: p.position,
+          nat: p.nation
+        }))
+      };
+      
+      const str = JSON.stringify(compact);
+      const b64 = btoa(unescape(encodeURIComponent(str)));
+      const shareCode = `FUT26-${b64}`;
+      
+      navigator.clipboard.writeText(shareCode).then(() => {
+        alert(lang === 'tr' 
+          ? 'Kadro Paylaşım Kodu panoya kopyalandı! Bu kodu arkadaşlarınıza göndererek Liderlik Tablosu sekmesinden kendi oyunlarına eklemelerini sağlayabilirsiniz.' 
+          : 'Squad Share Code copied to clipboard! Send it to your friends so they can add your team to their Leaderboard.');
+      }).catch(err => {
+        prompt(lang === 'tr' ? 'Kadro Paylaşım Kodunuz:' : 'Your Squad Share Code:', shareCode);
+      });
+    } catch (e) {
+      console.error('Failed to export squad:', e);
+    }
   };
 
   // OVR calculations
@@ -516,6 +579,22 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
             <X size={16} />
             <span>{lang === 'tr' ? 'Temizle' : 'Reset'}</span>
           </button>
+
+          {/* Share Squad Button */}
+          {activeSlots.filter(slot => squad[slot] !== null && squad[slot] !== undefined).length === 11 && (
+            <button 
+              className="btn-secondary" 
+              onClick={handleShareSquad}
+              style={{ 
+                height: 'fit-content', 
+                alignSelf: 'center',
+                borderColor: 'var(--accent-gold)',
+                color: 'var(--accent-gold)'
+              }}
+            >
+              <span>{lang === 'tr' ? 'Kadroyu Paylaş' : 'Share Squad'}</span>
+            </button>
+          )}
         </div>
       </div>
 

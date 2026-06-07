@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Shield, Star, Award, X } from 'lucide-react';
+import { Trophy, Shield, Star, Award, X, Trash2 } from 'lucide-react';
 import { translations } from '../data/translations';
 
 const DEMO_TEAMS = [
@@ -97,8 +97,160 @@ const DEMO_TEAMS = [
   }
 ];
 
+const calculateUserSquadStats = (squad, formation, username) => {
+  if (!squad || !formation) return null;
+  
+  const rows = formation === '4-3-3' ? [['LW', 'ST', 'RW'], ['CM', 'CAM', 'CDM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
+               formation === '4-4-2' ? [['ST1', 'ST2'], ['LM', 'CM1', 'CM2', 'RM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
+               formation === '3-5-2' ? [['ST1', 'ST2'], ['LM', 'CM1', 'CAM', 'CM2', 'RM'], ['CB1', 'CB2', 'CB3'], ['GK']] :
+               [['ST'], ['LAM', 'CAM', 'RAM'], ['LDM', 'RDM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']]; // 4-2-3-1
+
+  const activeSlots = rows.flat();
+  const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
+  
+  if (players.length < 11) {
+    return null;
+  }
+
+  // Calculate rating
+  const sum = players.reduce((acc, p) => acc + p.rating, 0);
+  const ovr = Math.floor(sum / 11);
+
+  // Calculate chemistry
+  const clubCounts = {};
+  const nationCounts = {};
+  players.forEach(p => {
+    const club = p.club ? p.club.toLowerCase() : '';
+    const nation = p.nation ? p.nation.toLowerCase() : '';
+    clubCounts[club] = (clubCounts[club] || 0) + 1;
+    nationCounts[nation] = (nationCounts[nation] || 0) + 1;
+  });
+
+  let totalChem = 0;
+  activeSlots.forEach(slot => {
+    const player = squad[slot];
+    if (!player) return;
+    let chem = 0;
+    
+    let targetPos = slot.toUpperCase();
+    if (slot.startsWith('CB')) targetPos = 'CB';
+    else if (slot.startsWith('ST')) targetPos = 'ST';
+    else if (slot.startsWith('CM')) targetPos = 'CM';
+    else if (slot.startsWith('CDM') || slot === 'LDM' || slot === 'RDM') targetPos = 'CDM';
+    else if (slot.startsWith('CAM') || slot === 'LAM' || slot === 'RAM') targetPos = 'CAM';
+    
+    const playerPos = player.position.toUpperCase();
+    if (playerPos === targetPos || 
+        (targetPos === 'CAM' && playerPos === 'CM') ||
+        (targetPos === 'CDM' && playerPos === 'CM') ||
+        (targetPos === 'LM' && playerPos === 'LW') ||
+        (targetPos === 'RM' && playerPos === 'RW')
+    ) {
+      chem += 1;
+    }
+
+    if (player.club && clubCounts[player.club.toLowerCase()] >= 2) chem += 1;
+    if (player.nation && nationCounts[player.nation.toLowerCase()] >= 2) chem += 1;
+    
+    totalChem += chem;
+  });
+
+  return {
+    id: `local_user_${username.toLowerCase()}`,
+    name: username,
+    ovr,
+    chem: totalChem,
+    logo: username.substring(0, 2).toUpperCase(),
+    color: '#8b5cf6',
+    reward: 1.2,
+    isLocalUser: true,
+    players: players.map(p => ({ name: p.name, rating: p.rating, position: p.position, nation: p.nation }))
+  };
+};
+
 export default function Leaderboard({ collection, lang, user }) {
   const t = translations[lang];
+
+  const [friendsSquads, setFriendsSquads] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fut_friends_squads') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+  const [shareCode, setShareCode] = useState('');
+  const [importMessage, setImportMessage] = useState(null);
+  const [importError, setImportError] = useState(false);
+
+  const handleImportSquad = () => {
+    if (!shareCode.trim()) return;
+    setImportMessage(null);
+    setImportError(false);
+
+    const trimmed = shareCode.trim();
+    if (!trimmed.startsWith('FUT26-')) {
+      setImportError(true);
+      setImportMessage(t.invalidShareCode || 'Geçersiz paylaşım kodu!');
+      return;
+    }
+
+    try {
+      const b64 = trimmed.substring(6);
+      const str = decodeURIComponent(escape(atob(b64)));
+      const parsed = JSON.parse(str);
+
+      if (!parsed.n || typeof parsed.o !== 'number' || typeof parsed.c !== 'number' || !Array.isArray(parsed.p)) {
+        throw new Error('Invalid format');
+      }
+
+      const squadId = `friend_${parsed.n.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`;
+      const exists = friendsSquads.some(s => s.name === parsed.n && s.ovr === parsed.o && s.chem === parsed.c);
+      if (exists) {
+        setImportError(true);
+        setImportMessage(t.squadAlreadyImported || 'Bu kadro zaten içe aktarılmış!');
+        return;
+      }
+
+      const newFriendSquad = {
+        id: squadId,
+        name: parsed.n,
+        ovr: parsed.o,
+        chem: parsed.c,
+        logo: parsed.n.substring(0, 2).toUpperCase(),
+        color: '#3b82f6',
+        reward: 1.0,
+        isFriend: true,
+        players: parsed.p.map(p => ({
+          name: p.n,
+          rating: p.r,
+          position: p.p,
+          nation: p.nat
+        }))
+      };
+
+      const updatedFriendsList = [...friendsSquads, newFriendSquad];
+      setFriendsSquads(updatedFriendsList);
+      localStorage.setItem('fut_friends_squads', JSON.stringify(updatedFriendsList));
+      setShareCode('');
+      setImportError(false);
+      setImportMessage(t.squadImported || 'Kadro başarıyla içe aktarıldı ve Liderlik Tablosuna eklendi!');
+      
+      setTimeout(() => {
+        setImportMessage(null);
+      }, 4000);
+    } catch (e) {
+      console.error(e);
+      setImportError(true);
+      setImportMessage(t.invalidShareCode || 'Geçersiz paylaşım kodu!');
+    }
+  };
+
+  const handleDeleteFriendSquad = (id, e) => {
+    e.stopPropagation();
+    const updated = friendsSquads.filter(s => s.id !== id);
+    setFriendsSquads(updated);
+    localStorage.setItem('fut_friends_squads', JSON.stringify(updated));
+  };
 
   // Load user squad and calculate OVR and Chemistry live
   const userSquadStats = useMemo(() => {
@@ -180,17 +332,40 @@ export default function Leaderboard({ collection, lang, user }) {
     };
   }, [user, collection]);
 
-  // Merge User Squad with Demo Squads and Sort
+  // Merge User Squad with Demo Squads & Friends Squads & Other Local Users and Sort
   const rankings = useMemo(() => {
     const list = [...DEMO_TEAMS];
     list.push(userSquadStats);
+    
+    // 1. Add imported friend squads
+    friendsSquads.forEach(fs => {
+      list.push(fs);
+    });
+
+    // 2. Add other local registered users
+    try {
+      const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+      users.forEach(u => {
+        if (user && u.username.toLowerCase() === user.username.toLowerCase()) {
+          return;
+        }
+        if (u.squad && u.formation) {
+          const stats = calculateUserSquadStats(u.squad, u.formation, u.username);
+          if (stats) {
+            list.push(stats);
+          }
+        }
+      });
+    } catch (e) {
+      console.error(e);
+    }
     
     return list.sort((a, b) => {
       const aVal = a.ovr * 100 + a.chem;
       const bVal = b.ovr * 100 + b.chem;
       return bVal - aVal;
     });
-  }, [userSquadStats]);
+  }, [userSquadStats, friendsSquads, user]);
 
   const [activeDetailsTeam, setActiveDetailsTeam] = useState(null);
 
@@ -210,6 +385,71 @@ export default function Leaderboard({ collection, lang, user }) {
               : 'Compare your custom squad OVR and Chemistry against legend teams!'}
           </p>
         </div>
+      </div>
+
+      {/* Friend Import Section */}
+      <div className="glass-panel" style={{ 
+        border: '1px solid rgba(226,183,75,0.25)', 
+        padding: '1.25rem', 
+        marginBottom: '1.5rem',
+        background: 'linear-gradient(135deg, rgba(226,183,75,0.03) 0%, rgba(0,0,0,0) 100%)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+      }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: '900', color: 'var(--accent-gold)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <Shield size={16} />
+          <span>{t.importFriendSquad || "Arkadaş Kadrosu İçe Aktar"}</span>
+        </h3>
+        
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.4' }}>
+          {lang === 'tr' 
+            ? 'Arkadaşının Kadro Kurucu sekmesinden kopyaladığı paylaşım kodunu yapıştırarak onun kadrosunu liderlik tablosuna ekleyebilir ve maç simülasyonunda ona meydan okuyabilirsin!'
+            : "Paste the share code copied from your friend's Squad Builder tab to add their squad to the leaderboard and challenge them in match simulations!"}
+        </p>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <input 
+            type="text" 
+            className="form-input" 
+            placeholder={t.pasteShareCode || "Paylaşım Kodunu Yapıştır (FUT26- ile başlayan kod)"}
+            value={shareCode}
+            onChange={(e) => setShareCode(e.target.value)}
+            style={{ 
+              flexGrow: 1, 
+              minWidth: '250px', 
+              fontSize: '0.8rem',
+              borderColor: shareCode.trim().startsWith('FUT26-') ? 'var(--accent-gold)' : 'var(--border-color)',
+              boxShadow: shareCode.trim().startsWith('FUT26-') ? '0 0 8px rgba(226,183,75,0.15)' : 'none'
+            }}
+          />
+          <button 
+            className="btn-primary" 
+            onClick={handleImportSquad}
+            disabled={!shareCode.trim()}
+            style={{ 
+              padding: '0.6rem 1.25rem', 
+              fontSize: '0.8rem',
+              background: shareCode.trim().startsWith('FUT26-') ? 'linear-gradient(135deg, #e2b74b, #b5891d)' : 'var(--bg-secondary)',
+              cursor: shareCode.trim() ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {t.importBtn || "İçe Aktar"}
+          </button>
+        </div>
+
+        {importMessage && (
+          <div style={{ 
+            marginTop: '0.75rem', 
+            padding: '0.5rem 0.75rem', 
+            borderRadius: '6px', 
+            fontSize: '0.75rem', 
+            fontWeight: '700',
+            backgroundColor: importError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+            color: importError ? '#ef4444' : '#10b981',
+            border: `1px solid ${importError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+          }}>
+            {importMessage}
+          </div>
+        )}
       </div>
 
       {/* Leaderboard Table List */}
@@ -273,9 +513,41 @@ export default function Leaderboard({ collection, lang, user }) {
                     {team.logo || 'FC'}
                   </div>
                   <div>
-                    <span style={{ fontWeight: '800', color: isUserRow ? 'var(--accent-gold)' : 'var(--text-primary)', fontSize: '0.95rem' }}>
-                      {team.name}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '800', color: isUserRow ? 'var(--accent-gold)' : 'var(--text-primary)', fontSize: '0.95rem' }}>
+                        {team.name}
+                      </span>
+                      {team.isFriend && (
+                        <span style={{
+                          fontSize: '0.55rem',
+                          fontWeight: '900',
+                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                          color: '#60a5fa',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {lang === 'tr' ? 'ARKADAŞ' : 'FRIEND'}
+                        </span>
+                      )}
+                      {team.isLocalUser && (
+                        <span style={{
+                          fontSize: '0.55rem',
+                          fontWeight: '900',
+                          backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                          color: '#a78bfa',
+                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {lang === 'tr' ? 'KULLANICI' : 'USER'}
+                        </span>
+                      )}
+                    </div>
                     {team.manager && (
                       <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                         Mgr: {team.manager}
@@ -299,18 +571,42 @@ export default function Leaderboard({ collection, lang, user }) {
                   {team.incomplete ? '--' : `${team.chem}/33`}
                 </div>
 
-                {/* Details Button */}
-                <div style={{ width: '15%', textAlign: 'right' }}>
+                {/* Details Button & Delete icon for Friends */}
+                <div style={{ width: '15%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
                   {team.incomplete ? (
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>-</span>
                   ) : (
-                    <button 
-                      className="btn-secondary" 
-                      onClick={() => setActiveDetailsTeam(team)}
-                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                    >
-                      {lang === 'tr' ? 'Kadro' : 'View'}
-                    </button>
+                    <>
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => setActiveDetailsTeam(team)}
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                      >
+                        {lang === 'tr' ? 'Kadro' : 'View'}
+                      </button>
+                      {team.isFriend && (
+                        <button
+                          onClick={(e) => handleDeleteFriendSquad(team.id, e)}
+                          title={t.deleteFriendSquad || 'Arkadaş kadrosunu sil'}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.25rem',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

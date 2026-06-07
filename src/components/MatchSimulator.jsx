@@ -451,6 +451,76 @@ const DuelCard = ({ player, team, role, isClashing }) => {
   );
 };
 
+const calculateUserSquadStats = (squad, formation, username) => {
+  if (!squad || !formation) return null;
+  
+  const rows = formation === '4-3-3' ? [['LW', 'ST', 'RW'], ['CM', 'CAM', 'CDM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
+               formation === '4-4-2' ? [['ST1', 'ST2'], ['LM', 'CM1', 'CM2', 'RM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']] :
+               formation === '3-5-2' ? [['ST1', 'ST2'], ['LM', 'CM1', 'CAM', 'CM2', 'RM'], ['CB1', 'CB2', 'CB3'], ['GK']] :
+               [['ST'], ['LAM', 'CAM', 'RAM'], ['LDM', 'RDM'], ['LB', 'CB1', 'CB2', 'RB'], ['GK']]; // 4-2-3-1
+
+  const activeSlots = rows.flat();
+  const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
+  
+  if (players.length < 11) {
+    return null;
+  }
+
+  // Calculate rating
+  const sum = players.reduce((acc, p) => acc + p.rating, 0);
+  const ovr = Math.floor(sum / 11);
+
+  // Calculate chemistry
+  const clubCounts = {};
+  const nationCounts = {};
+  players.forEach(p => {
+    const club = p.club ? p.club.toLowerCase() : '';
+    const nation = p.nation ? p.nation.toLowerCase() : '';
+    clubCounts[club] = (clubCounts[club] || 0) + 1;
+    nationCounts[nation] = (nationCounts[nation] || 0) + 1;
+  });
+
+  let totalChem = 0;
+  activeSlots.forEach(slot => {
+    const player = squad[slot];
+    if (!player) return;
+    let chem = 0;
+    
+    let targetPos = slot.toUpperCase();
+    if (slot.startsWith('CB')) targetPos = 'CB';
+    else if (slot.startsWith('ST')) targetPos = 'ST';
+    else if (slot.startsWith('CM')) targetPos = 'CM';
+    else if (slot.startsWith('CDM') || slot === 'LDM' || slot === 'RDM') targetPos = 'CDM';
+    else if (slot.startsWith('CAM') || slot === 'LAM' || slot === 'RAM') targetPos = 'CAM';
+    
+    const playerPos = player.position.toUpperCase();
+    if (playerPos === targetPos || 
+        (targetPos === 'CAM' && playerPos === 'CM') ||
+        (targetPos === 'CDM' && playerPos === 'CM') ||
+        (targetPos === 'LM' && playerPos === 'LW') ||
+        (targetPos === 'RM' && playerPos === 'RW')
+    ) {
+      chem += 1;
+    }
+
+    if (player.club && clubCounts[player.club.toLowerCase()] >= 2) chem += 1;
+    if (player.nation && nationCounts[player.nation.toLowerCase()] >= 2) chem += 1;
+    
+    totalChem += chem;
+  });
+
+  return {
+    id: `local_user_${username.toLowerCase()}`,
+    name: username,
+    ovr,
+    chem: totalChem,
+    logo: username.substring(0, 2).toUpperCase(),
+    color: '#8b5cf6',
+    reward: 1.2,
+    players: players.map(p => ({ name: p.name, rating: p.rating, position: p.position, nation: p.nation }))
+  };
+};
+
 export default function MatchSimulator({ collection, lang, user, coins, onUpdateCoins }) {
   const t = translations[lang];
 
@@ -538,8 +608,62 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
     if (!userSquadStats.incomplete) {
       list.push(userSquadStats);
     }
+    
+    // 1. Add friend squads
+    try {
+      const savedFriends = localStorage.getItem('fut_friends_squads');
+      if (savedFriends) {
+        const friends = JSON.parse(savedFriends);
+        friends.forEach(f => {
+          list.push({
+            id: f.id,
+            name: `${f.name} (Friend)`,
+            manager: 'Alex',
+            ovr: f.ovr,
+            chem: f.chem,
+            logo: f.logo || 'FR',
+            color: f.color || '#3b82f6',
+            reward: 1.1,
+            stadium: f.stadium || 'Away Arena',
+            players: f.players || []
+          });
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 2. Add other local registered users
+    try {
+      const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
+      users.forEach(u => {
+        if (user && u.username.toLowerCase() === user.username.toLowerCase()) {
+          return;
+        }
+        if (u.squad && u.formation) {
+          const stats = calculateUserSquadStats(u.squad, u.formation, u.username);
+          if (stats) {
+            list.push({
+              id: stats.id,
+              name: `${stats.name} (User)`,
+              manager: 'Manager',
+              ovr: stats.ovr,
+              chem: stats.chem,
+              logo: stats.logo,
+              color: stats.color,
+              reward: 1.2,
+              stadium: 'Local Arena',
+              players: stats.players
+            });
+          }
+        }
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    
     return list;
-  }, [userSquadStats]);
+  }, [userSquadStats, user]);
 
   const [matchStep, setMatchStep] = useState('setup'); // setup, playing, result
   const [homeTeam, setHomeTeam] = useState(DEMO_TEAMS[0]);

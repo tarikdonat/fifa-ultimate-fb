@@ -78,7 +78,14 @@ export const translations = {
     formation: "Formasyon",
     buyBronzePack: "Bronze Paket Al (150 Jeton)",
     buyGoldPack: "Gold Paket Al (500 Jeton)",
-    buyMegaPack: "Mega Paket Al (1500 Jeton)"
+    buyMegaPack: "Mega Paket Al (1500 Jeton)",
+    importFriendSquad: "Arkadaş Kadrosu İçe Aktar",
+    pasteShareCode: "Paylaşım Kodunu Yapıştır (FUT26- ile başlayan kod)",
+    importBtn: "İçe Aktar",
+    invalidShareCode: "Geçersiz paylaşım kodu!",
+    squadImported: "Kadro başarıyla içe aktarıldı ve Liderlik Tablosuna eklendi!",
+    squadAlreadyImported: "Bu kadro zaten içe aktarılmış!",
+    deleteFriendSquad: "Arkadaş kadrosunu sil"
   },
   en: {
     title: "FUT 2026 ULTIMATE TEAM",
@@ -159,6 +166,13 @@ export const translations = {
     formation: "Formation",
     buyBronzePack: "Buy Bronze Pack (150 Coins)",
     buyGoldPack: "Buy Gold Pack (500 Coins)",
-    buyMegaPack: "Buy Mega Pack (1500 Coins)"
+    buyMegaPack: "Buy Mega Pack (1500 Coins)",
+    importFriendSquad: "Import Friend's Squad",
+    pasteShareCode: "Paste Share Code (Starts with FUT26-)",
+    importBtn: "Import",
+    invalidShareCode: "Invalid share code!",
+    squadImported: "Squad imported successfully and added to the Leaderboard!",
+    squadAlreadyImported: "This squad is already imported!",
+    deleteFriendSquad: "Delete friend squad"
   }
 };

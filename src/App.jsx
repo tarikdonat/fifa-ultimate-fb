@@ -72,6 +72,18 @@ export default function App() {
           setUser({ username: dbUser.username });
           setCoins(dbUser.coins !== undefined ? dbUser.coins : 500);
           
+          // Set user specific active squad and formation
+          if (dbUser.squad) {
+            localStorage.setItem('fut_active_squad', JSON.stringify(dbUser.squad));
+          } else {
+            localStorage.removeItem('fut_active_squad');
+          }
+          if (dbUser.formation) {
+            localStorage.setItem('fut_active_formation', dbUser.formation);
+          } else {
+            localStorage.setItem('fut_active_formation', '4-3-3');
+          }
+          
           // Repair collection items with updated properties from fallbackPlayers (e.g. correct photo URLs)
           let changed = false;
           const repairedCollection = (dbUser.collection || []).map(item => {
@@ -121,11 +133,26 @@ export default function App() {
     setUser({ username: dbUser.username });
     setCollection(dbUser.collection || []);
     setCoins(dbUser.coins !== undefined ? dbUser.coins : 500);
+    
+    // Load user specific active squad and formation
+    if (dbUser.squad) {
+      localStorage.setItem('fut_active_squad', JSON.stringify(dbUser.squad));
+    } else {
+      localStorage.removeItem('fut_active_squad');
+    }
+    if (dbUser.formation) {
+      localStorage.setItem('fut_active_formation', dbUser.formation);
+    } else {
+      localStorage.setItem('fut_active_formation', '4-3-3');
+    }
+    
     setActiveTab('daily');
   };
 
   const handleLogout = () => {
     localStorage.removeItem('fut_active_user');
+    localStorage.removeItem('fut_active_squad');
+    localStorage.removeItem('fut_active_formation');
     setUser(null);
     setCollection([]);
     setCoins(0);
