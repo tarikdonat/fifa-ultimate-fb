@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Trophy, Shield, Star, Award, X, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Trophy, Shield, Star, Award, X, Trash2, RefreshCw } from 'lucide-react';
 import { translations } from '../data/translations';
+import { syncSquadToOnlineDB, fetchOnlineSquads } from '../data/onlineSync';
 
 const DEMO_TEAMS = [
   {
@@ -195,6 +196,39 @@ const calculateUserSquadStats = (squad, formation, username) => {
 export default function Leaderboard({ collection, lang, user }) {
   const t = translations[lang];
 
+  const [onlineSquads, setOnlineSquads] = useState([]);
+  const [isOnlineLoading, setIsOnlineLoading] = useState(false);
+
+  const fetchAndSyncOnline = async () => {
+    setIsOnlineLoading(true);
+    try {
+      const activeUserStr = localStorage.getItem('fut_active_user');
+      const savedSquad = localStorage.getItem('fut_active_squad');
+      const savedFormation = localStorage.getItem('fut_active_formation') || '4-3-3';
+      
+      if (activeUserStr && savedSquad) {
+        try {
+          const activeUser = JSON.parse(activeUserStr);
+          const squad = JSON.parse(savedSquad);
+          await syncSquadToOnlineDB(activeUser.username, squad, savedFormation);
+        } catch (e) {
+          console.error('Failed to auto-sync on mount:', e);
+        }
+      }
+
+      const squads = await fetchOnlineSquads();
+      setOnlineSquads(squads);
+    } catch (e) {
+      console.error('Failed to load online squads:', e);
+    } finally {
+      setIsOnlineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAndSyncOnline();
+  }, []);
+
   const [friendsSquads, setFriendsSquads] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('fut_friends_squads') || '[]');
@@ -356,7 +390,7 @@ export default function Leaderboard({ collection, lang, user }) {
     };
   }, [user, collection]);
 
-  // Merge User Squad with Demo Squads & Friends Squads & Other Local Users and Sort
+  // Merge User Squad with Demo Squads & Friends Squads & Online Synced Squads & Other Local Users and Sort
   const rankings = useMemo(() => {
     const list = [...DEMO_TEAMS];
     list.push(userSquadStats);
@@ -366,18 +400,30 @@ export default function Leaderboard({ collection, lang, user }) {
       list.push(fs);
     });
 
-    // 2. Add other local registered users
+    // 2. Add online synced squads
+    onlineSquads.forEach(os => {
+      const isMe = user && os.name.toLowerCase() === user.username.toLowerCase();
+      if (!isMe) {
+        const isAlreadyFriend = friendsSquads.some(fs => fs.name.toLowerCase() === os.name.toLowerCase());
+        if (!isAlreadyFriend) {
+          list.push(os);
+        }
+      }
+    });
+
+    // 3. Add other local registered users
     try {
       const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
       users.forEach(u => {
         if (user && u.username.toLowerCase() === user.username.toLowerCase()) {
           return;
         }
-        if (u.squad && u.formation) {
-          const stats = calculateUserSquadStats(u.squad, u.formation, u.username);
-          if (stats) {
-            list.push(stats);
-          }
+        const isOnline = onlineSquads.some(os => os.name.toLowerCase() === u.username.toLowerCase());
+        if (isOnline) return;
+
+        const stats = calculateUserSquadStats(u.squad, u.formation, u.username);
+        if (stats) {
+          list.push(stats);
         }
       });
     } catch (e) {
@@ -389,7 +435,7 @@ export default function Leaderboard({ collection, lang, user }) {
       const bVal = b.ovr * 100 + b.chem;
       return bVal - aVal;
     });
-  }, [userSquadStats, friendsSquads, user]);
+  }, [userSquadStats, friendsSquads, onlineSquads, user]);
 
   const [activeDetailsTeam, setActiveDetailsTeam] = useState(null);
 
@@ -409,6 +455,22 @@ export default function Leaderboard({ collection, lang, user }) {
               : 'Compare your custom squad OVR and Chemistry against legend teams!'}
           </p>
         </div>
+        <button
+          onClick={fetchAndSyncOnline}
+          disabled={isOnlineLoading}
+          className="btn-secondary"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            fontSize: '0.8rem',
+            cursor: isOnlineLoading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <RefreshCw size={14} style={{ animation: isOnlineLoading ? 'spin 1s linear infinite' : 'none' }} />
+          <span>{lang === 'tr' ? 'Güncelle' : 'Refresh'}</span>
+        </button>
       </div>
 
       {/* Friend Import Section */}
@@ -569,6 +631,25 @@ export default function Leaderboard({ collection, lang, user }) {
                           letterSpacing: '0.5px'
                         }}>
                           {lang === 'tr' ? 'KULLANICI' : 'USER'}
+                        </span>
+                      )}
+                      {team.isOnline && (
+                        <span style={{
+                          fontSize: '0.55rem',
+                          fontWeight: '900',
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.2rem'
+                        }}>
+                          <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
+                          {lang === 'tr' ? 'ÇEVRİMİÇİ' : 'ONLINE'}
                         </span>
                       )}
                     </div>

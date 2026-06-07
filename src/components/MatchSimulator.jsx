@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Play, Volume2, VolumeX, Shield, Sparkles } from 'lucide-react';
 import { translations } from '../data/translations';
+import { fetchOnlineSquads } from '../data/onlineSync';
 
 const DEMO_TEAMS = [
   {
@@ -528,6 +529,20 @@ const calculateUserSquadStats = (squad, formation, username) => {
 export default function MatchSimulator({ collection, lang, user, coins, onUpdateCoins }) {
   const t = translations[lang];
 
+  const [onlineSquads, setOnlineSquads] = useState([]);
+
+  useEffect(() => {
+    const loadOnline = async () => {
+      try {
+        const squads = await fetchOnlineSquads();
+        setOnlineSquads(squads);
+      } catch (e) {
+        console.error('Failed to load online squads in simulator:', e);
+      }
+    };
+    loadOnline();
+  }, []);
+
   // Load user squad
   const userSquadStats = useMemo(() => {
     const savedSquad = localStorage.getItem('fut_active_squad');
@@ -637,13 +652,35 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
       console.error(e);
     }
 
-    // 2. Add other local registered users
+    // 2. Add online synced squads
+    onlineSquads.forEach(os => {
+      const exists = list.some(t => t.name.toLowerCase() === `${os.name} (Online)`.toLowerCase() || t.name.toLowerCase() === os.name.toLowerCase());
+      if (!exists && (!user || os.name.toLowerCase() !== user.username.toLowerCase())) {
+        list.push({
+          id: os.id,
+          name: `${os.name} (Online)`,
+          manager: 'Online Manager',
+          ovr: os.ovr,
+          chem: os.chem,
+          logo: os.logo,
+          color: '#10b981', // green
+          reward: 1.3,
+          stadium: 'Online Arena',
+          players: os.players
+        });
+      }
+    });
+
+    // 3. Add other local registered users
     try {
       const users = JSON.parse(localStorage.getItem('fut_users') || '[]');
       users.forEach(u => {
         if (user && u.username.toLowerCase() === user.username.toLowerCase()) {
           return;
         }
+        const isOnline = onlineSquads.some(os => os.name.toLowerCase() === u.username.toLowerCase());
+        if (isOnline) return;
+
         if (u.squad && u.formation) {
           const stats = calculateUserSquadStats(u.squad, u.formation, u.username);
           if (stats) {
@@ -667,7 +704,7 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
     }
     
     return list;
-  }, [userSquadStats, user]);
+  }, [userSquadStats, user, onlineSquads]);
 
   const [matchStep, setMatchStep] = useState('setup'); // setup, playing, result
   const [homeTeam, setHomeTeam] = useState(DEMO_TEAMS[0]);

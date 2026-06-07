@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import PlayerCard from './PlayerCard';
 import { translations } from '../data/translations';
 import { Plus, X, ShieldAlert, Award, Star, Settings, Play, RefreshCw, Trophy } from 'lucide-react';
+import { syncSquadToOnlineDB } from '../data/onlineSync';
 
 const FORMATIONS = {
   '4-3-3': {
@@ -168,6 +169,7 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
           users[userIndex].squad = newSquad;
           localStorage.setItem('fut_users', JSON.stringify(users));
         }
+        syncSquadToOnlineDB(activeUser.username, newSquad, formation);
       }
     } catch (e) {
       console.error(e);
@@ -189,6 +191,7 @@ export default function SquadBuilder({ collection, lang, coins, onUpdateCoins })
           users[userIndex].formation = newForm;
           localStorage.setItem('fut_users', JSON.stringify(users));
         }
+        syncSquadToOnlineDB(activeUser.username, squad, newForm);
       }
     } catch (e) {
       console.error(e);
