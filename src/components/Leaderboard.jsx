@@ -206,10 +206,10 @@ export default function Leaderboard({ collection, lang, user }) {
       const savedSquad = localStorage.getItem('fut_active_squad');
       const savedFormation = localStorage.getItem('fut_active_formation') || '4-3-3';
       
-      if (activeUserStr && savedSquad) {
+      if (activeUserStr) {
         try {
           const activeUser = JSON.parse(activeUserStr);
-          const squad = JSON.parse(savedSquad);
+          const squad = savedSquad ? JSON.parse(savedSquad) : {};
           await syncSquadToOnlineDB(activeUser.username, squad, savedFormation);
         } catch (e) {
           console.error('Failed to auto-sync on mount:', e);

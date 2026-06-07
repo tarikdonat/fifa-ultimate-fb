@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { translations } from '../data/translations';
 import { LogIn, UserPlus, ShieldAlert } from 'lucide-react';
+import { syncSquadToOnlineDB } from '../data/onlineSync';
 
 export default function Auth({ onLoginSuccess, lang }) {
   const t = translations[lang];
@@ -36,6 +37,13 @@ export default function Auth({ onLoginSuccess, lang }) {
 
       users.push(newUser);
       localStorage.setItem('fut_users', JSON.stringify(users));
+      
+      // Sync to online database immediately
+      try {
+        syncSquadToOnlineDB(newUser.username, {}, '4-3-3');
+      } catch (e) {
+        console.error('Failed to sync registered user online:', e);
+      }
       
       // Auto log in
       localStorage.setItem('fut_active_user', JSON.stringify({ username: newUser.username }));

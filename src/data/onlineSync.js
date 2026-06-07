@@ -47,6 +47,7 @@ export const deserializeSquad = (serializedStr) => {
       color: '#10b981', // green for online
       reward: 1.3,
       isOnline: true,
+      incomplete: players.length < 11,
       players
     };
   } catch (e) {
@@ -59,7 +60,6 @@ export const syncSquadToOnlineDB = async (username, squad, formation) => {
   if (!username || !squad) return;
   const activeSlots = getActiveSlots(formation);
   const players = activeSlots.map(slot => squad[slot]).filter(p => p !== null && p !== undefined);
-  if (players.length < 11) return; // Only sync complete squads
 
   // Calculate rating
   const sum = players.reduce((acc, p) => acc + p.rating, 0);
