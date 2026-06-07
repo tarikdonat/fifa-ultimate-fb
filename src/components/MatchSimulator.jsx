@@ -1264,6 +1264,19 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
         }));
       }
 
+      if (isGoal) {
+        playSynthesizedSound('goal', soundEnabled);
+        if (selectedSide === 'home') {
+          setHomeScore(prev => prev + 1);
+          setBallPosition('away_goal');
+        } else {
+          setAwayScore(prev => prev + 1);
+          setBallPosition('home_goal');
+        }
+      } else {
+        playSynthesizedSound('whistle_short', soundEnabled);
+      }
+
     } else if (criticalMoment.type === 'freekick') {
       let chance = 0.5;
       if (optionId === 'curve') {
@@ -1290,6 +1303,19 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
         setMatchStats(prev => ({ ...prev, shotsHome: prev.shotsHome + 1, shotsTargetHome: isGoal ? prev.shotsTargetHome + 1 : prev.shotsTargetHome }));
       } else {
         setMatchStats(prev => ({ ...prev, shotsAway: prev.shotsAway + 1, shotsTargetAway: isGoal ? prev.shotsTargetAway + 1 : prev.shotsTargetAway }));
+      }
+
+      if (isGoal) {
+        playSynthesizedSound('goal', soundEnabled);
+        if (selectedSide === 'home') {
+          setHomeScore(prev => prev + 1);
+          setBallPosition('away_goal');
+        } else {
+          setAwayScore(prev => prev + 1);
+          setBallPosition('home_goal');
+        }
+      } else {
+        playSynthesizedSound('whistle_short', soundEnabled);
       }
 
     } else if (criticalMoment.type === 'defense') {
@@ -1487,249 +1513,109 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
       <style>{`
         .derby-pitch {
           width: 100%;
-          height: 190px;
-          background: repeating-linear-gradient(
-            90deg,
-            #115e3b,
-            #115e3b 8%,
-            #156a42 8%,
-            #156a42 16%
-          );
-          border: 3px solid #10b981;
-          border-radius: 12px;
+          height: 280px;
+          background: #14532d;
+          background-image: linear-gradient(to bottom, #1b5e20, #0f5113);
+          border: 4px solid #1f2937;
+          border-radius: 16px;
           position: relative;
           overflow: hidden;
           margin-bottom: 1.25rem;
-          box-shadow: inset 0 0 30px rgba(0,0,0,0.6), 0 0 15px rgba(16, 185, 129, 0.2);
+          box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5);
         }
-        .pitch-boundary {
+        .pitch-turf-stripes {
           position: absolute;
-          top: 8px;
-          bottom: 8px;
-          left: 8px;
-          right: 8px;
-          border: 1.5px solid rgba(255,255,255,0.4);
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: repeating-linear-gradient(
+            90deg,
+            rgba(255,255,255,0.03),
+            rgba(255,255,255,0.03) 6.25%,
+            transparent 6.25%,
+            transparent 12.5%
+          );
           pointer-events: none;
+          z-index: 1;
         }
-        .pitch-line-center {
+        .pitch-attack-overlay {
           position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.5s ease;
+          z-index: 1;
+        }
+        .pulse-home-attack {
+          opacity: 1;
+          background: linear-gradient(90deg, transparent 30%, rgba(16, 185, 129, 0.08) 100%);
+          animation: pulse-overlay 1.2s infinite alternate;
+        }
+        .pulse-away-attack {
+          opacity: 1;
+          background: linear-gradient(270deg, transparent 30%, rgba(239, 68, 68, 0.08) 100%);
+          animation: pulse-overlay 1.2s infinite alternate;
+        }
+        @keyframes pulse-overlay {
+          0% { opacity: 0.4; }
+          100% { opacity: 1; }
+        }
+        .pitch-team-logo-bg {
+          position: absolute;
+          font-weight: 900;
+          font-size: 5rem;
+          color: rgba(255,255,255,0.05);
+          text-transform: uppercase;
+          pointer-events: none;
+          user-select: none;
+          z-index: 1;
+          font-family: sans-serif;
+        }
+        .pitch-team-logo-left {
+          left: 10%;
           top: 50%;
-          left: 8px;
-          right: 8px;
-          height: 1.5px;
-          background-color: rgba(255,255,255,0.4);
           transform: translateY(-50%);
         }
-        .pitch-circle-center {
-          position: absolute;
+        .pitch-team-logo-right {
+          right: 10%;
           top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 44px;
-          height: 44px;
-          border: 1.5px solid rgba(255,255,255,0.4);
-          border-radius: 50%;
-        }
-        .pitch-spot-center {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 4px;
-          height: 4px;
-          background-color: rgba(255,255,255,0.7);
-          border-radius: 50%;
-        }
-        .pitch-box-top-outer {
-          position: absolute;
-          top: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 100px;
-          height: 30px;
-          border: 1.5px solid rgba(255,255,255,0.4);
-          border-top: none;
-        }
-        .pitch-box-top-inner {
-          position: absolute;
-          top: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 44px;
-          height: 10px;
-          border: 1.5px solid rgba(255,255,255,0.35);
-          border-top: none;
-        }
-        .pitch-spot-top {
-          position: absolute;
-          top: 28px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 3px;
-          height: 3px;
-          background-color: rgba(255,255,255,0.7);
-          border-radius: 50%;
-        }
-        .pitch-arc-top {
-          position: absolute;
-          top: 38px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 30px;
-          height: 10px;
-          border: 1.5px solid rgba(255,255,255,0.4);
-          border-top: none;
-          border-bottom-left-radius: 50% 100%;
-          border-bottom-right-radius: 50% 100%;
-        }
-        .pitch-box-bottom-outer {
-          position: absolute;
-          bottom: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 100px;
-          height: 30px;
-          border: 1.5px solid rgba(255,255,255,0.4);
-          border-bottom: none;
-        }
-        .pitch-box-bottom-inner {
-          position: absolute;
-          bottom: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 44px;
-          height: 10px;
-          border: 1.5px solid rgba(255,255,255,0.35);
-          border-bottom: none;
-        }
-        .pitch-spot-bottom {
-          position: absolute;
-          bottom: 28px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 3px;
-          height: 3px;
-          background-color: rgba(255,255,255,0.7);
-          border-radius: 50%;
-        }
-        .pitch-arc-bottom {
-          position: absolute;
-          bottom: 38px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 30px;
-          height: 10px;
-          border: 1.5px solid rgba(255,255,255,0.4);
-          border-bottom: none;
-          border-top-left-radius: 50% 100%;
-          border-top-right-radius: 50% 100%;
-        }
-        .pitch-corner-tl {
-          position: absolute;
-          top: 8px;
-          left: 8px;
-          width: 6px;
-          height: 6px;
-          border-bottom-right-radius: 100%;
-          border-right: 1.5px solid rgba(255,255,255,0.4);
-          border-bottom: 1.5px solid rgba(255,255,255,0.4);
-        }
-        .pitch-corner-tr {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          width: 6px;
-          height: 6px;
-          border-bottom-left-radius: 100%;
-          border-left: 1.5px solid rgba(255,255,255,0.4);
-          border-bottom: 1.5px solid rgba(255,255,255,0.4);
-        }
-        .pitch-corner-bl {
-          position: absolute;
-          bottom: 8px;
-          left: 8px;
-          width: 6px;
-          height: 6px;
-          border-top-right-radius: 100%;
-          border-right: 1.5px solid rgba(255,255,255,0.4);
-          border-top: 1.5px solid rgba(255,255,255,0.4);
-        }
-        .pitch-corner-br {
-          position: absolute;
-          bottom: 8px;
-          right: 8px;
-          width: 6px;
-          height: 6px;
-          border-top-left-radius: 100%;
-          border-left: 1.5px solid rgba(255,255,255,0.4);
-          border-top: 1.5px solid rgba(255,255,255,0.4);
-        }
-        .pitch-goal-top {
-          position: absolute;
-          top: 2px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 36px;
-          height: 6px;
-          border: 1.5px solid rgba(255,255,255,0.6);
-          border-bottom: none;
-          background-image: 
-            linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px);
-          background-size: 2px 2px;
-        }
-        .pitch-goal-bottom {
-          position: absolute;
-          bottom: 2px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 36px;
-          height: 6px;
-          border: 1.5px solid rgba(255,255,255,0.6);
-          border-top: none;
-          background-image: 
-            linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px);
-          background-size: 2px 2px;
+          transform: translateY(-50%);
         }
         .pitch-ball {
-          width: 14px;
-          height: 14px;
+          width: 18px;
+          height: 18px;
           background-color: #fff;
-          border: 1.5px solid #000;
+          border: 2px solid #111;
           border-radius: 50%;
           position: absolute;
-          transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
-          box-shadow: 0 0 10px #fbbf24;
+          transition: all 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.6), 0 0 15px #fbbf24;
           z-index: 10;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 8px;
+          font-size: 11px;
+          line-height: 1;
         }
         .pitch-stadium-name {
           position: absolute;
-          bottom: 6px;
-          right: 12px;
-          font-size: 0.6rem;
-          color: rgba(255,255,255,0.4);
+          bottom: 12px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 0.65rem;
+          color: rgba(255,255,255,0.5);
           font-weight: bold;
           text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        .pitch-attack-pulse-home {
-          animation: pulse-home 1.2s infinite alternate;
-        }
-        .pitch-attack-pulse-away {
-          animation: pulse-away 1.2s infinite alternate;
-        }
-        @keyframes pulse-home {
-          0% { background-color: rgba(16, 185, 129, 0.05); }
-          100% { background-color: rgba(239, 68, 68, 0.12); }
-        }
-        @keyframes pulse-away {
-          0% { background-color: rgba(16, 185, 129, 0.05); }
-          100% { background-color: rgba(59, 130, 246, 0.12); }
+          letter-spacing: 2px;
+          background-color: rgba(0,0,0,0.4);
+          padding: 0.2rem 0.6rem;
+          border-radius: 4px;
+          pointer-events: none;
+          z-index: 3;
         }
         .duel-overlay {
           position: absolute;
@@ -2034,47 +1920,82 @@ export default function MatchSimulator({ collection, lang, user, coins, onUpdate
           </div>
 
           {/* VISUAL FIELD PITCH ARENA */}
-          <div className={`derby-pitch ${ballPosition === 'home_attack' || ballPosition === 'home_goal' ? 'pitch-attack-pulse-home' : ''} ${ballPosition === 'away_attack' || ballPosition === 'away_goal' ? 'pitch-attack-pulse-away' : ''}`}>
-            <div className="pitch-boundary"></div>
-            <div className="pitch-line-center"></div>
-            <div className="pitch-circle-center"></div>
-            <div className="pitch-spot-center"></div>
-            
-            <div className="pitch-box-top-outer"></div>
-            <div className="pitch-box-top-inner"></div>
-            <div className="pitch-spot-top"></div>
-            <div className="pitch-arc-top"></div>
-            
-            <div className="pitch-box-bottom-outer"></div>
-            <div className="pitch-box-bottom-inner"></div>
-            <div className="pitch-spot-bottom"></div>
-            <div className="pitch-arc-bottom"></div>
-            
-            <div className="pitch-corner-tl"></div>
-            <div className="pitch-corner-tr"></div>
-            <div className="pitch-corner-bl"></div>
-            <div className="pitch-corner-br"></div>
-            
-            <div className="pitch-goal-top"></div>
-            <div className="pitch-goal-bottom"></div>
+          <div className="derby-pitch">
+            {/* Turf stripes */}
+            <div className="pitch-turf-stripes"></div>
 
+            {/* Attack overlay pulse */}
+            <div className={`pitch-attack-overlay ${
+              ballPosition === 'home_attack' || ballPosition === 'home_goal' ? 'pulse-away-attack' : 
+              ballPosition === 'away_attack' || ballPosition === 'away_goal' ? 'pulse-home-attack' : ''
+            }`}></div>
+
+            {/* SVG Markings */}
+            <svg viewBox="0 0 800 300" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }}>
+              {/* Outer Boundary */}
+              <rect x="15" y="15" width="770" height="270" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              
+              {/* Center Line */}
+              <line x1="400" y1="15" x2="400" y2="285" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              
+              {/* Center Circle */}
+              <circle cx="400" cy="150" r="50" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              <circle cx="400" cy="150" r="4" fill="rgba(255,255,255,0.7)" />
+              
+              {/* Left Penalty Area */}
+              <rect x="15" y="65" width="110" height="170" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              {/* Left Goal Area */}
+              <rect x="15" y="115" width="40" height="70" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              {/* Left Penalty Spot */}
+              <circle cx="95" cy="150" r="3" fill="rgba(255,255,255,0.7)" />
+              {/* Left Penalty Arc */}
+              <path d="M 125 120 A 50 50 0 0 1 125 180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+
+              {/* Right Penalty Area */}
+              <rect x="675" y="65" width="110" height="170" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              {/* Right Goal Area */}
+              <rect x="745" y="115" width="40" height="70" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+              {/* Right Penalty Spot */}
+              <circle cx="705" cy="150" r="3" fill="rgba(255,255,255,0.7)" />
+              {/* Right Penalty Arc */}
+              <path d="M 675 120 A 50 50 0 0 0 675 180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+
+              {/* Corner Arcs */}
+              <path d="M 15 30 A 15 15 0 0 1 30 15" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+              <path d="M 30 285 A 15 15 0 0 1 15 270" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+              <path d="M 770 15 A 15 15 0 0 1 785 30" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+              <path d="M 785 270 A 15 15 0 0 1 770 285" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+
+              {/* Left Goal Net */}
+              <rect x="2" y="125" width="13" height="50" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeDasharray="3,3" />
+              {/* Right Goal Net */}
+              <rect x="785" y="125" width="13" height="50" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeDasharray="3,3" />
+            </svg>
+
+            {/* Team Logos as Watermarks */}
+            <div className="pitch-team-logo-bg pitch-team-logo-left">
+              {homeTeam.logo}
+            </div>
+            <div className="pitch-team-logo-bg pitch-team-logo-right">
+              {awayTeam.logo}
+            </div>
+
+            {/* Interactive Moving Ball */}
             <div 
               className="pitch-ball" 
               style={{ 
-                left: '50%',
+                left: ballPosition === 'home_goal' ? '2.5%' :
+                      ballPosition === 'home_attack' ? '22%' :
+                      ballPosition === 'midfield' ? '50%' :
+                      ballPosition === 'away_attack' ? '78%' : '97.5%',
                 top: ballPosition === 'midfield' ? '50%' :
-                     ballPosition === 'home_attack' ? '25%' :
-                     ballPosition === 'away_attack' ? '75%' :
-                     ballPosition === 'home_goal' ? '5%' : '95%',
-                transform: 'translate(-50%, -50%)'
+                     ballPosition === 'home_goal' || ballPosition === 'away_goal' ? '50%' :
+                     ballPosition === 'home_attack' ? '40%' : '60%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10
               }}
-            />
-
-            <div style={{ position: 'absolute', top: '15px', left: '15px', color: 'rgba(255,255,255,0.12)', fontWeight: 'bold', fontSize: '1.5rem', textTransform: 'uppercase' }}>
-              {homeTeam.logo}
-            </div>
-            <div style={{ position: 'absolute', bottom: '15px', right: '15px', color: 'rgba(255,255,255,0.12)', fontWeight: 'bold', fontSize: '1.5rem', textTransform: 'uppercase' }}>
-              {awayTeam.logo}
+            >
+              ⚽
             </div>
 
             <span className="pitch-stadium-name">
