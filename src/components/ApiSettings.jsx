@@ -46,7 +46,7 @@ export default function ApiSettings({ user, lang }) {
     setStatusMessage('');
 
     try {
-      const response = await fetch(`https://${apiHost}/players/search?name=${encodeURIComponent(searchQuery.trim())}`, {
+      const response = await fetch(`https://${apiHost}/api/v1/search/all?q=${encodeURIComponent(searchQuery.trim())}`, {
         method: 'GET',
         headers: {
           'x-rapidapi-key': apiKey.trim(),
@@ -61,14 +61,19 @@ export default function ApiSettings({ user, lang }) {
       const data = await response.json();
       
       let list = [];
-      if (Array.isArray(data)) {
-        list = data;
-      } else if (data.players && Array.isArray(data.players)) {
-        list = data.players;
-      } else if (data.results && Array.isArray(data.results)) {
-        list = data.results;
-      } else if (data.data && Array.isArray(data.data)) {
-        list = data.data;
+      if (data.results && Array.isArray(data.results)) {
+        list = data.results
+          .filter(item => {
+            const isPlayerOrManager = item.type === 'player' || item.type === 'manager';
+            const isFootball = item.entity?.sport?.slug === 'football' || item.entity?.team?.sport?.slug === 'football';
+            return isPlayerOrManager && isFootball;
+          })
+          .map(item => {
+            return {
+              ...item.entity,
+              type: item.type
+            };
+          });
       }
 
       if (list.length > 0) {
@@ -149,7 +154,7 @@ export default function ApiSettings({ user, lang }) {
     let rarity = 'gold';
     if (ratingBase >= 90) rarity = 'toty';
 
-    const teamName = apiItem.team?.name || p.team?.name || 'Imported FC';
+    const teamName = p.team?.name || 'Imported FC';
     const nation = p.country?.name || p.nationality || 'Global';
 
     const newPlayer = {
@@ -161,7 +166,7 @@ export default function ApiSettings({ user, lang }) {
       nation: nation,
       league: 'Sofa League',
       rarity: rarity,
-      avatar: p.id ? `https://www.sofascore.com/api/v1/player/${p.id}/image` : null,
+      avatar: p.id ? (p.type === 'manager' ? `https://www.sofascore.com/api/v1/manager/${p.id}/image` : `https://www.sofascore.com/api/v1/player/${p.id}/image`) : null,
       pac,
       sho,
       pas,
